@@ -9,16 +9,27 @@ const leanAgent = mastra.getAgent("leanAgent");
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
-  const stream = await leanAgent.stream(messages, {
-    memory: {
-      thread: "lean-user-id",
-      resource: "lean-chat",
-    },
-  });
+  try {
+    const response = await leanAgent.generate(messages, {
+      memory: {
+        thread: "lean-user-id",
+        resource: "lean-chat",
+      },
+    });
 
-  return createUIMessageStreamResponse({
-    stream: toAISdkFormat(stream, { from: "agent" }),
-  });
+    return NextResponse.json({
+      role: "assistant",
+      content: response.text,
+    });
+  } catch (error) {
+    console.error("Error in chat route:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to process chat request. Check server logs for details.",
+      },
+      { status: 500 }
+    );
+  }
 }
 
 export async function GET() {

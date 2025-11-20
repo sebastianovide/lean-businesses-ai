@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Save, Plus, Minus, Settings, Link as LinkIcon } from "lucide-react";
-import { useChat } from "@ai-sdk/react";
 
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
@@ -13,6 +12,12 @@ interface CanvasSection {
   title?: string;
   items?: string[];
   subsections?: { title: string; items: string[] }[];
+}
+
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
 }
 
 const initialCanvas: CanvasSection[] = [
@@ -80,19 +85,94 @@ const initialCanvas: CanvasSection[] = [
 
 const CanvasEditor: React.FC = () => {
   const [canvas, setCanvas] = useState<CanvasSection[]>(initialCanvas);
+  const [localInput, setLocalInput] = useState("");
 
-  // AI Chat integration using Vercel AI SDK's useChat hook
-  // This connects to the /api/chat endpoint which uses the Mastra agent
-  const {
-    messages,
-    append,
-    isLoading: aiThinking,
-    input: chatInput,
-    handleInputChange,
-    handleSubmit: originalHandleSubmit,
-  } = useChat({
-    api: "/api/chat",
-  } as any) as any;
+  // Custom chat state
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  // Load messages on mount
+  useEffect(() => {
+    const loadMessages = async () => {
+      try {
+        const response = await fetch("/api/chat");
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(data);
+        }
+      } catch (err) {
+        console.error("Failed to load messages:", err);
+      }
+    };
+    loadMessages();
+  }, []);
+
+  // Track if a request is in progress
+  const isRequestInProgress = useRef(false);
+
+  // Function to send a message
+  const sendMessage = async (content: string) => {
+    // Prevent multiple simultaneous requests
+    if (isRequestInProgress.current) {
+      console.log("Request already in progress, skipping");
+      return;
+    }
+
+    const userMessage: Message = {
+      id: uuidv4(),
+      role: "user",
+      content,
+    };
+
+    // Add user message to state
+    setMessages((prev) => [...prev, userMessage]);
+    setAiThinking(true);
+    setError(null);
+    isRequestInProgress.current = true;
+
+    // Build the messages array to send to API
+    const messagesToSend = [...messages, userMessage];
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: messagesToSend,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send message");
+      }
+
+      const data = await response.json();
+      console.log("Received response:", data);
+
+      const assistantMessage: Message = {
+        id: uuidv4(),
+        role: "assistant",
+        content: data.content || "",
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (err) {
+      setError(err as Error);
+      console.error("Chat error:", err);
+    } finally {
+      setAiThinking(false);
+      isRequestInProgress.current = false;
+    }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!localInput.trim()) return;
+
+    sendMessage(localInput);
+    setLocalInput("");
+  };
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -125,14 +205,6 @@ const CanvasEditor: React.FC = () => {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  // Wrapper for sending messages programmatically
-  const sendMessage = async (content: string) => {
-    await append({
-      role: "user",
-      content: content,
-    });
-  };
 
   // Helper to get section/subsection title
   const getSectionAndSubTitle = (
@@ -731,6 +803,11 @@ const CanvasEditor: React.FC = () => {
               </div>
             )}
             {messages.map((msg: any, idx: number, arr: any[]) => {
+              // Safety check for msg.content
+              if (!msg || !msg.content) {
+                return null;
+              }
+
               // Enhanced: Split message content by <think>...</think> blocks, handling incomplete blocks
               const parts: Array<{
                 type: "text" | "think";
@@ -793,10 +870,12 @@ const CanvasEditor: React.FC = () => {
                           }
                           onToggle={() => {
                             if (!isStreamingBotMsg) {
-                              setCollapsibleOpen((prev) => ({
-                                ...prev,
-                                [part.thinkKey!]: !prev[part.thinkKey!],
-                              }));
+                              setCollapsibleOpen(
+                                (prev: Record<string, boolean>) => ({
+                                  ...prev,
+                                  [part.thinkKey!]: !prev[part.thinkKey!],
+                                })
+                              );
                             }
                           }}
                           forceOpenNoToggle={isStreamingBotMsg}
@@ -829,16 +908,20 @@ const CanvasEditor: React.FC = () => {
             )}
             <div ref={chatEndRef} />
           </div>
-          <form
-            onSubmit={originalHandleSubmit}
-            className="p-4 border-t flex gap-2"
-          >
+
+          {error && (
+            <div className="px-4 py-2 bg-red-50 border-t border-red-100 text-red-600 text-xs">
+              <span>Error: {error.message || "Failed to send message"}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleFormSubmit} className="p-4 border-t flex gap-2">
             <input
               type="text"
               className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               placeholder="Ask the AI..."
-              value={chatInput}
-              onChange={handleInputChange}
+              value={localInput}
+              onChange={(e) => setLocalInput(e.target.value)}
             />
             <button
               type="submit"
