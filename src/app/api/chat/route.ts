@@ -7,14 +7,21 @@ const leanAgent = mastra.getAgent("leanAgent");
 const logger = new PinoLogger({ name: "ChatAPI", level: "info" });
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages, canvasId } = await req.json();
 
-  logger.info("Messages sent to agent", { messages });
+  logger.info("Messages sent to agent", { messages, canvasId });
+
+  if (!canvasId) {
+    return NextResponse.json(
+      { error: "canvasId is required" },
+      { status: 400 }
+    );
+  }
 
   try {
     const response = await leanAgent.generate(messages, {
       memory: {
-        thread: "lean-user-id",
+        thread: canvasId,
         resource: "lean-chat",
       },
     });
@@ -36,16 +43,27 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const canvasId = searchParams.get("canvasId");
+
+  if (!canvasId) {
+    return NextResponse.json(
+      { error: "canvasId is required" },
+      { status: 400 }
+    );
+  }
+
   const memory = await leanAgent.getMemory();
 
   try {
     const response = await memory?.query({
-      threadId: "lean-user-id",
+      threadId: canvasId,
       resourceId: "lean-chat",
     });
 
     logger.info("Memory query result", {
+      canvasId,
       uiMessages: response?.uiMessages ?? [],
     });
 

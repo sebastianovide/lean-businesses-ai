@@ -1,10 +1,18 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Save, Plus, Minus, Settings, Link as LinkIcon } from "lucide-react";
+import {
+  Save,
+  Plus,
+  Minus,
+  Settings,
+  Link as LinkIcon,
+  Trash2,
+} from "lucide-react";
 
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 
 interface CanvasSection {
   id: string;
@@ -84,6 +92,12 @@ const initialCanvas: CanvasSection[] = [
 ];
 
 const CanvasEditor: React.FC = () => {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Canvas ID management - get from URL or generate new
+  const [canvasId, setCanvasId] = useState<string>("");
+
   const [canvas, setCanvas] = useState<CanvasSection[]>(initialCanvas);
   const [localInput, setLocalInput] = useState("");
 
@@ -92,11 +106,50 @@ const CanvasEditor: React.FC = () => {
   const [aiThinking, setAiThinking] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  // Load messages on mount
+  // Initialize canvas ID from URL or generate new
   useEffect(() => {
+    const urlCanvasId = searchParams.get("canvasId");
+    if (urlCanvasId) {
+      setCanvasId(urlCanvasId);
+    } else {
+      const newId = uuidv4();
+      setCanvasId(newId);
+      router.replace(`/canvas?canvasId=${newId}`);
+    }
+  }, [searchParams, router]);
+
+  // Load canvas from local storage when canvasId changes
+  useEffect(() => {
+    if (!canvasId) return;
+
+    const storageKey = `lean-canvas-${canvasId}`;
+    const savedCanvas = localStorage.getItem(storageKey);
+
+    if (savedCanvas) {
+      try {
+        const parsed = JSON.parse(savedCanvas);
+        setCanvas(parsed);
+      } catch (err) {
+        console.error("Failed to load canvas from storage:", err);
+      }
+    }
+  }, [canvasId]);
+
+  // Auto-save canvas to local storage whenever it changes
+  useEffect(() => {
+    if (!canvasId) return;
+
+    const storageKey = `lean-canvas-${canvasId}`;
+    localStorage.setItem(storageKey, JSON.stringify(canvas));
+  }, [canvas, canvasId]);
+
+  // Load messages when canvasId changes
+  useEffect(() => {
+    if (!canvasId) return;
+
     const loadMessages = async () => {
       try {
-        const response = await fetch("/api/chat");
+        const response = await fetch(`/api/chat?canvasId=${canvasId}`);
         if (response.ok) {
           const data = await response.json();
           setMessages(data);
@@ -106,7 +159,7 @@ const CanvasEditor: React.FC = () => {
       }
     };
     loadMessages();
-  }, []);
+  }, [canvasId]);
 
   // Track if a request is in progress
   const isRequestInProgress = useRef(false);
@@ -140,6 +193,7 @@ const CanvasEditor: React.FC = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: messagesToSend,
+          canvasId,
         }),
       });
 
@@ -580,11 +634,31 @@ const CanvasEditor: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "lean-canvas.json";
+    a.download = `lean-canvas-${canvasId}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const handleClearCanvas = () => {
+    if (
+      !confirm(
+        "Are you sure you want to clear this canvas? This will delete all data and chat history."
+      )
+    ) {
+      return;
+    }
+
+    // Delete from local storage
+    const storageKey = `lean-canvas-${canvasId}`;
+    localStorage.removeItem(storageKey);
+
+    // Reset canvas to initial state
+    setCanvas(initialCanvas);
+
+    // Clear chat messages
+    setMessages([]);
   };
 
   // Collapsible component for <think> blocks
@@ -742,13 +816,20 @@ const CanvasEditor: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-6 flex justify-center">
+          <div className="mt-6 flex justify-center gap-4">
             <button
               className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
               onClick={handleSaveCanvas}
             >
               <Save size={20} />
               Save Canvas
+            </button>
+            <button
+              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
+              onClick={handleClearCanvas}
+            >
+              <Trash2 size={20} />
+              Clear Canvas
             </button>
           </div>
         </div>
