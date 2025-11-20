@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import {
-  Save,
-  Plus,
-  Minus,
-  Settings,
-  Link as LinkIcon,
-  Trash2,
-} from "lucide-react";
+import { Save, Plus, Minus, Link as LinkIcon, Trash2 } from "lucide-react";
 
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
@@ -706,7 +699,7 @@ const CanvasEditor: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6">
+    <div className="min-h-screen bg-gray-100 py-6 flex items-center">
       <style>{`
         .dot-typing {
           display: inline-block;
@@ -732,7 +725,7 @@ const CanvasEditor: React.FC = () => {
           100% { opacity: 0.2; transform: translateY(0); }
         }
       `}</style>
-      <div className="max-w-7xl mx-auto px-4 flex gap-6">
+      <div className="max-w-7xl mx-auto px-4 flex gap-6 w-full">
         {/* Main content (canvas) */}
         <div className="flex-1 min-w-0">
           {/* Navigation */}
@@ -743,7 +736,7 @@ const CanvasEditor: React.FC = () => {
             <p className="text-gray-600">Build your business model canvas</p>
 
             {/* Navigation Links */}
-            <div className="mt-4 flex justify-center gap-4">
+            <div className="mt-4 flex justify-center gap-8">
               <Link
                 href="/"
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -756,12 +749,6 @@ const CanvasEditor: React.FC = () => {
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 Saved Canvases
-              </Link>
-              <Link
-                href="/settings"
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Settings
               </Link>
             </div>
           </div>
@@ -837,19 +824,8 @@ const CanvasEditor: React.FC = () => {
         <aside className="w-80 bg-white rounded-lg shadow-lg flex flex-col h-[800px]">
           <div className="p-4 border-b font-bold text-lg text-blue-700 flex items-center justify-between">
             <span>AI Brainstorm Chat</span>
-            <button
-              className="ml-2 p-1 rounded hover:bg-blue-100 text-blue-700"
-              title="Configure AI Service"
-              onClick={() => setShowConfig(true)}
-            >
-              <Settings size={20} />
-            </button>
           </div>
-          {/* Show current AI config */}
-          <div className="px-4 py-2 text-xs text-gray-600 border-b bg-gray-50">
-            <span className="font-semibold">AI: </span>
-            Mastra Agent (Server-side)
-          </div>
+
           {/* Config Modal/Popover - Simplified for now */}
           {showConfig && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
