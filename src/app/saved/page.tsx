@@ -2,21 +2,69 @@
 
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 const SavedCanvases: React.FC = () => {
-  const savedCanvases = [
-    { id: "1", name: "E-commerce Platform", date: "2024-01-15" },
-    { id: "2", name: "Mobile App Startup", date: "2024-01-10" },
-    { id: "3", name: "SaaS Solution", date: "2024-01-05" },
-  ];
+  const router = useRouter();
+  const [savedCanvases, setSavedCanvases] = React.useState<
+    { id: string; name: string; createdAt: string; updatedAt: string }[]
+  >([]);
+
+  React.useEffect(() => {
+    const loadCanvases = () => {
+      try {
+        const indexJson = localStorage.getItem("lean-canvases-index");
+        if (indexJson) {
+          const canvases = JSON.parse(indexJson);
+          // Sort by updated at desc
+          canvases.sort(
+            (a: any, b: any) =>
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+          setSavedCanvases(canvases);
+        }
+      } catch (err) {
+        console.error("Failed to load saved canvases:", err);
+      }
+    };
+
+    loadCanvases();
+
+    // Listen for storage events to update list if changed in another tab
+    window.addEventListener("storage", loadCanvases);
+    return () => window.removeEventListener("storage", loadCanvases);
+  }, []);
+
+  const handleDelete = (id: string) => {
+    if (!confirm("Are you sure you want to delete this canvas?")) return;
+
+    try {
+      // Remove from index
+      const newCanvases = savedCanvases.filter((c) => c.id !== id);
+      localStorage.setItem("lean-canvases-index", JSON.stringify(newCanvases));
+      setSavedCanvases(newCanvases);
+
+      // Remove data
+      localStorage.removeItem(`lean-canvas-${id}`);
+      localStorage.removeItem(`lean-canvas-name-${id}`);
+    } catch (err) {
+      console.error("Failed to delete canvas:", err);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleString();
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 py-6">
       <div className="max-w-4xl mx-auto px-4">
         <div className="mb-6">
-          <Link href="/" className="text-blue-600 hover:text-blue-800">
-            ← Back to Editor
-          </Link>
+          <Button variant="link" className="p-0" onClick={() => router.back()}>
+            ← Back
+          </Button>
         </div>
 
         <div className="text-center mb-8">
@@ -32,12 +80,13 @@ const SavedCanvases: React.FC = () => {
           {savedCanvases.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500 mb-4">No saved canvases yet</p>
-              <Link
-                href="/canvas"
-                className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              <Button
+                asChild
+                size="lg"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-lg transition-all"
               >
-                Create Your First Canvas
-              </Link>
+                <Link href="/canvas">Create Your First Canvas</Link>
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -51,17 +100,31 @@ const SavedCanvases: React.FC = () => {
                       <h3 className="text-lg font-semibold text-gray-900">
                         {canvas.name}
                       </h3>
-                      <p className="text-sm text-gray-600">
-                        Created: {canvas.date}
-                      </p>
+                      <div className="text-sm text-gray-600 mt-1 space-y-1">
+                        <p>
+                          ID:{" "}
+                          <span className="font-mono text-xs bg-gray-100 px-1 rounded">
+                            {canvas.id}
+                          </span>
+                        </p>
+                        <p>Created: {formatDate(canvas.createdAt)}</p>
+                        <p>Updated: {formatDate(canvas.updatedAt)}</p>
+                      </div>
                     </div>
                     <div className="flex gap-2">
-                      <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
-                        Open
-                      </button>
-                      <button className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
+                      <Button
+                        asChild
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow transition-all"
+                      >
+                        <Link href={`/canvas?canvasId=${canvas.id}`}>Open</Link>
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        className="bg-rose-600 hover:bg-rose-700 text-white shadow-sm hover:shadow transition-all"
+                        onClick={() => handleDelete(canvas.id)}
+                      >
                         Delete
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>

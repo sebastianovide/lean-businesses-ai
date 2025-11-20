@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 const Home: React.FC = () => {
   return (
@@ -46,18 +47,21 @@ const Home: React.FC = () => {
                 Build and iterate on your business model with AI assistance
               </p>
               <div className="flex justify-center gap-8">
-                <Link
-                  href="/canvas"
-                  className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-lg transition-all"
                 >
-                  Start Building Your Canvas
-                </Link>
-                <Link
-                  href="/saved"
-                  className="inline-block px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                  <Link href="/canvas">Start a new Canvas</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="secondary"
+                  className="bg-white text-indigo-600 border border-indigo-100 hover:bg-indigo-50 shadow-sm hover:shadow-md transition-all"
                 >
-                  Saved Canvases
-                </Link>
+                  <Link href="/saved">Saved Canvases</Link>
+                </Button>
               </div>
               <p className="text-sm text-gray-400 mt-4">
                 Click above to access the Canvas Editor

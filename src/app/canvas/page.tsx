@@ -6,6 +6,7 @@ import { Save, Plus, Minus, Link as LinkIcon, Trash2 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 interface CanvasSection {
   id: string;
@@ -90,6 +91,7 @@ const CanvasEditor: React.FC = () => {
 
   // Canvas ID management - get from URL or generate new
   const [canvasId, setCanvasId] = useState<string>("");
+  const [canvasName, setCanvasName] = useState<string>("Untitled Canvas");
 
   const [canvas, setCanvas] = useState<CanvasSection[]>(initialCanvas);
   const [localInput, setLocalInput] = useState("");
@@ -117,6 +119,7 @@ const CanvasEditor: React.FC = () => {
 
     const storageKey = `lean-canvas-${canvasId}`;
     const savedCanvas = localStorage.getItem(storageKey);
+    const savedName = localStorage.getItem(`lean-canvas-name-${canvasId}`);
 
     if (savedCanvas) {
       try {
@@ -126,7 +129,53 @@ const CanvasEditor: React.FC = () => {
         console.error("Failed to load canvas from storage:", err);
       }
     }
+
+    if (savedName) {
+      setCanvasName(savedName);
+    }
   }, [canvasId]);
+
+  // Helper to update the canvas index
+  const updateCanvasIndex = (
+    id: string,
+    name: string,
+    isNew: boolean = false
+  ) => {
+    try {
+      const indexKey = "lean-canvases-index";
+      const indexJson = localStorage.getItem(indexKey);
+      let index: {
+        id: string;
+        name: string;
+        createdAt: string;
+        updatedAt: string;
+      }[] = indexJson ? JSON.parse(indexJson) : [];
+
+      const now = new Date().toISOString();
+      const existingEntryIndex = index.findIndex((item) => item.id === id);
+
+      if (existingEntryIndex >= 0) {
+        // Update existing entry
+        index[existingEntryIndex] = {
+          ...index[existingEntryIndex],
+          name,
+          updatedAt: now,
+        };
+      } else {
+        // Add new entry
+        index.push({
+          id,
+          name,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+
+      localStorage.setItem(indexKey, JSON.stringify(index));
+    } catch (err) {
+      console.error("Failed to update canvas index:", err);
+    }
+  };
 
   // Auto-save canvas to local storage whenever it changes
   useEffect(() => {
@@ -134,7 +183,20 @@ const CanvasEditor: React.FC = () => {
 
     const storageKey = `lean-canvas-${canvasId}`;
     localStorage.setItem(storageKey, JSON.stringify(canvas));
-  }, [canvas, canvasId]);
+
+    // Update index with new timestamp
+    updateCanvasIndex(canvasId, canvasName);
+  }, [canvas, canvasId]); // Note: canvasName is not in dependency to avoid double updates, but we use current value
+
+  // Auto-save canvas name to local storage whenever it changes
+  useEffect(() => {
+    if (!canvasId) return;
+
+    localStorage.setItem(`lean-canvas-name-${canvasId}`, canvasName);
+
+    // Update index with new name
+    updateCanvasIndex(canvasId, canvasName);
+  }, [canvasName, canvasId]);
 
   // Load messages when canvasId changes
   useEffect(() => {
@@ -646,6 +708,20 @@ const CanvasEditor: React.FC = () => {
     // Delete from local storage
     const storageKey = `lean-canvas-${canvasId}`;
     localStorage.removeItem(storageKey);
+    localStorage.removeItem(`lean-canvas-name-${canvasId}`);
+
+    // Remove from index
+    try {
+      const indexKey = "lean-canvases-index";
+      const indexJson = localStorage.getItem(indexKey);
+      if (indexJson) {
+        const index = JSON.parse(indexJson);
+        const newIndex = index.filter((item: any) => item.id !== canvasId);
+        localStorage.setItem(indexKey, JSON.stringify(newIndex));
+      }
+    } catch (err) {
+      console.error("Failed to remove from canvas index:", err);
+    }
 
     // Reset canvas to initial state
     setCanvas(initialCanvas);
@@ -733,23 +809,47 @@ const CanvasEditor: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Lean Canvas Editor
             </h1>
-            <p className="text-gray-600">Build your business model canvas</p>
+            <input
+              type="text"
+              value={canvasName}
+              onChange={(e) => setCanvasName(e.target.value)}
+              className="text-gray-600 text-center bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none px-2 py-1 transition-colors"
+              placeholder="Enter canvas name..."
+            />
 
             {/* Navigation Links */}
             <div className="mt-4 flex justify-center gap-8">
-              <Link
-                href="/"
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              <Button
+                asChild
+                className="bg-gray-800 hover:bg-gray-900 text-white shadow-sm hover:shadow transition-all"
               >
-                <LinkIcon size={16} />
-                Home
-              </Link>
-              <Link
-                href="/saved"
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                <Link href="/">
+                  <LinkIcon size={16} />
+                  Home
+                </Link>
+              </Button>
+              <Button
+                asChild
+                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow transition-all"
               >
-                Saved Canvases
-              </Link>
+                <Link href="/saved">Saved Canvases</Link>
+              </Button>
+
+              <Button
+                onClick={handleSaveCanvas}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow transition-all"
+              >
+                <Save size={20} />
+                Export Canvas
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleClearCanvas}
+                className="bg-rose-600 hover:bg-rose-700 text-white shadow-sm hover:shadow transition-all"
+              >
+                <Trash2 size={20} />
+                Clear Canvas
+              </Button>
             </div>
           </div>
 
@@ -802,23 +902,6 @@ const CanvasEditor: React.FC = () => {
               </div>
             </div>
           </div>
-
-          <div className="mt-6 flex justify-center gap-4">
-            <button
-              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-              onClick={handleSaveCanvas}
-            >
-              <Save size={20} />
-              Save Canvas
-            </button>
-            <button
-              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
-              onClick={handleClearCanvas}
-            >
-              <Trash2 size={20} />
-              Clear Canvas
-            </button>
-          </div>
         </div>
         {/* Chat sidebar */}
         <aside className="w-80 bg-white rounded-lg shadow-lg flex flex-col h-[800px]">
@@ -844,12 +927,9 @@ const CanvasEditor: React.FC = () => {
                   The AI service is now managed by the Mastra server agent.
                   Client-side configuration is disabled.
                 </p>
-                <button
-                  onClick={() => setShowConfig(false)}
-                  className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition-colors"
-                >
+                <Button onClick={() => setShowConfig(false)} className="w-full">
                   Close
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -980,12 +1060,7 @@ const CanvasEditor: React.FC = () => {
               value={localInput}
               onChange={(e) => setLocalInput(e.target.value)}
             />
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
-            >
-              Send
-            </button>
+            <Button type="submit">Send</Button>
           </form>
         </aside>
       </div>
