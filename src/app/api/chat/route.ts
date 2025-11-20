@@ -4,15 +4,15 @@ import { toAISdkFormat } from "@mastra/ai-sdk";
 import { convertMessages } from "@mastra/core/agent";
 import { createUIMessageStreamResponse } from "ai";
 
-const weatherAgent = mastra.getAgent("weatherAgent");
+const leanAgent = mastra.getAgent("leanAgent");
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
-  const stream = await weatherAgent.stream(messages, {
+  const stream = await leanAgent.stream(messages, {
     memory: {
-      thread: "example-user-id",
-      resource: "weather-chat",
+      thread: "lean-user-id",
+      resource: "lean-chat",
     },
   });
 
@@ -22,12 +22,12 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const memory = await weatherAgent.getMemory();
+  const memory = await leanAgent.getMemory();
 
   try {
     const response = await memory?.query({
-      threadId: "example-user-id",
-      resourceId: "weather-chat",
+      threadId: "lean-user-id",
+      resourceId: "lean-chat",
     });
 
     const uiMessages = convertMessages(response?.uiMessages ?? []).to(
