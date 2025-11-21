@@ -38,6 +38,11 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  agentActivity?: Array<{
+    type: "start" | "finish" | "delegation";
+    agent: string;
+    timestamp: number;
+  }>;
 }
 
 const initialCanvas: CanvasSection[] = [
@@ -118,6 +123,7 @@ const CanvasEditor: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [aiThinking, setAiThinking] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [agentStatus, setAgentStatus] = useState<string | null>(null); // Track which agent is working
 
   // Initialize canvas ID from URL or generate new
   useEffect(() => {
@@ -255,10 +261,20 @@ const CanvasEditor: React.FC = () => {
     setMessages((prev) => [...prev, userMessage]);
     setAiThinking(true);
     setError(null);
+    setAgentStatus("Connecting...");
     isRequestInProgress.current = true;
 
     // Build the messages array to send to API
     const messagesToSend = [...messages, userMessage];
+
+    // Create a temporary assistant message that we'll update
+    const assistantMessageId = uuidv4();
+    let accumulatedText = "";
+    const agentActivity: Array<{
+      type: "start" | "finish" | "delegation";
+      agent: string;
+      timestamp: number;
+    }> = [];
 
     try {
       const response = await fetch("/api/chat", {
@@ -267,6 +283,7 @@ const CanvasEditor: React.FC = () => {
         body: JSON.stringify({
           messages: messagesToSend,
           canvasId,
+          canvasState: canvas, // Send current canvas state for context
         }),
       });
 
@@ -274,23 +291,132 @@ const CanvasEditor: React.FC = () => {
         throw new Error("Failed to send message");
       }
 
-      const data = await response.json();
-      console.log("Received response:", data);
+      // Handle Server-Sent Events
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      const assistantMessage: Message = {
-        id: uuidv4(),
-        role: "assistant",
-        content: data.content || "",
-      };
+      if (!reader) {
+        throw new Error("No response body");
+      }
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      // Add empty assistant message that we'll update
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantMessageId,
+          role: "assistant",
+          content: "",
+          agentActivity: [],
+        },
+      ]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              console.log("[SSE Event]", data); // DEBUG: See what we're receiving
+
+              if (data.type === "agent-start") {
+                // Agent started working
+                console.log("[Agent Start]", data.agent); // DEBUG
+                const friendlyName = formatAgentName(data.agent);
+                setAgentStatus(friendlyName);
+                agentActivity.push({
+                  type: "start",
+                  agent: data.agent,
+                  timestamp: Date.now(),
+                });
+                // Update message with activity
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, agentActivity: [...agentActivity] }
+                      : msg
+                  )
+                );
+              } else if (data.type === "agent-finish") {
+                // Agent finished
+                console.log("[Agent Finish]", data.agent); // DEBUG
+                agentActivity.push({
+                  type: "finish",
+                  agent: data.agent,
+                  timestamp: Date.now(),
+                });
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, agentActivity: [...agentActivity] }
+                      : msg
+                  )
+                );
+              } else if (data.type === "tool-call") {
+                // Agent delegating to another agent
+                console.log("[Tool Call]", data.tool); // DEBUG
+                const friendlyName = formatAgentName(data.tool);
+                setAgentStatus(`→ ${friendlyName}`);
+                agentActivity.push({
+                  type: "delegation",
+                  agent: data.tool,
+                  timestamp: Date.now(),
+                });
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, agentActivity: [...agentActivity] }
+                      : msg
+                  )
+                );
+              } else if (data.type === "text-delta") {
+                // Text chunk received
+                console.log("[Text Delta]", data.text.substring(0, 50)); // DEBUG: First 50 chars
+                accumulatedText += data.text;
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, content: accumulatedText }
+                      : msg
+                  )
+                );
+              } else if (data.type === "done") {
+                // Stream complete
+                setAgentStatus(null);
+                break;
+              }
+            } catch (e) {
+              console.error("Failed to parse SSE data:", e);
+            }
+          }
+        }
+      }
     } catch (err) {
       setError(err as Error);
       console.error("Chat error:", err);
+      // Remove the empty assistant message if there was an error
+      setMessages((prev) =>
+        prev.filter((msg) => msg.id !== assistantMessageId)
+      );
     } finally {
       setAiThinking(false);
+      setAgentStatus(null);
       isRequestInProgress.current = false;
     }
+  };
+
+  // Helper to format agent names for display
+  const formatAgentName = (agentName: string): string => {
+    // Convert "customer-insight-agent" to "Customer Insight Agent"
+    return agentName
+      .replace(/-agent$/i, "")
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -1032,6 +1158,66 @@ const CanvasEditor: React.FC = () => {
                         : "bg-gray-200 text-gray-800"
                     }`}
                   >
+                    {/* Agent Activity - Collapsible (Collapsed by Default) */}
+                    {msg.role === "assistant" &&
+                      msg.agentActivity &&
+                      msg.agentActivity.length > 0 && (
+                        <Collapsible
+                          label={`🤖 Agent Activity (${msg.agentActivity.length} events)`}
+                          open={collapsibleOpen[`activity-${msg.id}`] === true}
+                          onToggle={() => {
+                            setCollapsibleOpen(
+                              (prev: Record<string, boolean>) => ({
+                                ...prev,
+                                [`activity-${msg.id}`]:
+                                  !prev[`activity-${msg.id}`],
+                              })
+                            );
+                          }}
+                        >
+                          <div className="space-y-1">
+                            {msg.agentActivity.map(
+                              (
+                                activity: {
+                                  type: string;
+                                  agent: string;
+                                  timestamp: number;
+                                },
+                                idx: number
+                              ) => {
+                                const friendlyName = formatAgentName(
+                                  activity.agent
+                                );
+                                let icon = "🤖";
+                                let text = "";
+
+                                if (activity.type === "start") {
+                                  icon = "▶️";
+                                  text = `${friendlyName} started`;
+                                } else if (activity.type === "finish") {
+                                  icon = "✅";
+                                  text = `${friendlyName} completed`;
+                                } else if (activity.type === "delegation") {
+                                  icon = "🔄";
+                                  text = `Delegated to ${friendlyName}`;
+                                }
+
+                                return (
+                                  <div
+                                    key={idx}
+                                    className="text-xs flex items-start gap-1"
+                                  >
+                                    <span>{icon}</span>
+                                    <span>{text}</span>
+                                  </div>
+                                );
+                              }
+                            )}
+                          </div>
+                        </Collapsible>
+                      )}
+
+                    {/* Message Content */}
                     {parts.map((part, partIdx) =>
                       part.type === "think" ? (
                         <Collapsible
@@ -1066,17 +1252,22 @@ const CanvasEditor: React.FC = () => {
                 </div>
               );
             })}
-            {/* AI typing indicator */}
+            {/* AI typing indicator with agent status - COMPACT */}
             {aiThinking && (
               <div className="flex justify-start">
-                <div className="px-3 py-2 rounded-lg max-w-[70%] text-sm bg-gray-200 text-gray-800">
-                  <span className="inline-block">
-                    <span className="dot-typing">
-                      <span className="dot"></span>
-                      <span className="dot"></span>
-                      <span className="dot"></span>
+                <div className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600 border border-gray-300">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block">
+                      <span className="dot-typing">
+                        <span className="dot"></span>
+                        <span className="dot"></span>
+                        <span className="dot"></span>
+                      </span>
                     </span>
-                  </span>
+                    {agentStatus && (
+                      <span className="font-medium">{agentStatus}</span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

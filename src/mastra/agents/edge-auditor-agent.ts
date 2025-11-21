@@ -1,7 +1,7 @@
-import { Agent } from "@mastra/core/agent";
+import { LoggedAgent } from "../logged-agent";
 import { memory } from "../storage";
 
-export const edgeAuditorAgent = new Agent({
+export const edgeAuditorAgent = new LoggedAgent({
   name: "edge-auditor-agent",
   description:
     "Pressure-tests the Unfair Advantage box and kills hype (passion, first-mover, etc.).",

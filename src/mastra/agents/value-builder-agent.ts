@@ -1,7 +1,7 @@
-import { Agent } from "@mastra/core/agent";
+import { LoggedAgent } from "../logged-agent";
 import { memory } from "../storage";
 
-export const valueBuilderAgent = new Agent({
+export const valueBuilderAgent = new LoggedAgent({
   name: "value-builder-agent",
   description:
     "Crafts high-impact UVP headlines and minimal, buildable Solutions once problems are validated.",

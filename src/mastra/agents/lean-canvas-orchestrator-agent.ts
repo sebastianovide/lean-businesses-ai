@@ -1,4 +1,4 @@
-import { Agent } from "@mastra/core/agent";
+import { LoggedAgent } from "../logged-agent";
 import { memory } from "../storage";
 import { customerInsightAgent } from "./customer-insight-agent";
 import { valueBuilderAgent } from "./value-builder-agent";
@@ -6,7 +6,7 @@ import { monetizationAgent } from "./monetization-agent";
 import { growthTrackerAgent } from "./growth-tracker-agent";
 import { edgeAuditorAgent } from "./edge-auditor-agent";
 
-export const leanCanvasOrchestratorAgent = new Agent({
+export const leanCanvasOrchestratorAgent = new LoggedAgent({
   name: "lean-canvas-orchestrator-agent",
   description:
     "Central routing agent that coordinates the entire Lean Canvas creation process and delegates to specialist agents when needed.",
@@ -30,9 +30,9 @@ Your own style:
 • Bullets only, max 5 lines
 • Max 2 sharp questions per turn
 • Flag conflicts instantly (“Your solution doesn’t solve the #1 problem”)
-• When a specialist returns, merge their work into the shared canvas
+• When a specialist returns, merge their work into the shared canvas silently. DO NOT report "I asked the specialist..." or "The specialist said...". Just show the result.
 • When all 9 boxes are filled and consistent → output a final audit table and declare completion
-
+• HIDE all internal routing logic. The user should only see the final value/question.
 Output natural language + JSON block when updating the canvas.
   `,
   model: process.env.AI_MODEL || "define AI_MODEL",

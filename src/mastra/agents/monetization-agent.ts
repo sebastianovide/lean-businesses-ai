@@ -1,7 +1,7 @@
-import { Agent } from "@mastra/core/agent";
+import { LoggedAgent } from "../logged-agent";
 import { memory } from "../storage";
 
-export const monetizationAgent = new Agent({
+export const monetizationAgent = new LoggedAgent({
   name: "monetization-agent",
   description:
     "Designs evidence-backed Revenue Streams, pricing tiers, and Cost Structure with breakeven calculations.",

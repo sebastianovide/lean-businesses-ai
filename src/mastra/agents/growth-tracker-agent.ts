@@ -1,7 +1,7 @@
-import { Agent } from "@mastra/core/agent";
+import { LoggedAgent } from "../logged-agent";
 import { memory } from "../storage";
 
-export const growthTrackerAgent = new Agent({
+export const growthTrackerAgent = new LoggedAgent({
   name: "growth-tracker-agent",
   description:
     "Defines real acquisition Channels and 2–4 falsifiable Key Metrics tied to the AARRR funnel.",
