@@ -3,7 +3,9 @@ import { NextResponse } from "next/server";
 import { convertMessages } from "@mastra/core/agent";
 import { PinoLogger } from "@mastra/loggers";
 
-const leanAgent = mastra.getAgent("leanAgent");
+const leanCanvasOrchestratorAgent = mastra.getAgent(
+  "leanCanvasOrchestratorAgent"
+);
 const logger = new PinoLogger({ name: "ChatAPI", level: "info" });
 
 export async function POST(req: Request) {
@@ -19,18 +21,21 @@ export async function POST(req: Request) {
   }
 
   try {
-    const response = await leanAgent.generate(messages, {
+    const response = await leanCanvasOrchestratorAgent.network(messages, {
       memory: {
         thread: canvasId,
         resource: "lean-chat",
       },
+      maxSteps: 5,
     });
 
-    logger.info("Agent response received", { response: response.text });
+    logger.info("Agent response received", {
+      response: JSON.stringify(response, null, 2),
+    });
 
     return NextResponse.json({
       role: "assistant",
-      content: response.text,
+      content: response.result,
     });
   } catch (error) {
     logger.error("Error in chat route", { error });
@@ -54,7 +59,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const memory = await leanAgent.getMemory();
+  const memory = await leanCanvasOrchestratorAgent.getMemory();
 
   try {
     const response = await memory?.query({
