@@ -1,12 +1,30 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Save, Plus, Minus, Link as LinkIcon, Trash2 } from "lucide-react";
+import {
+  Save,
+  Plus,
+  Minus,
+  Link as LinkIcon,
+  Trash2,
+  Download,
+} from "lucide-react";
 
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface CanvasSection {
   id: string;
@@ -697,14 +715,6 @@ const CanvasEditor: React.FC = () => {
   };
 
   const handleClearCanvas = () => {
-    if (
-      !confirm(
-        "Are you sure you want to clear this canvas? This will delete all data and chat history."
-      )
-    ) {
-      return;
-    }
-
     // Delete from local storage
     const storageKey = `lean-canvas-${canvasId}`;
     localStorage.removeItem(storageKey);
@@ -728,6 +738,11 @@ const CanvasEditor: React.FC = () => {
 
     // Clear chat messages
     setMessages([]);
+
+    // Generate new ID and redirect
+    const newId = uuidv4();
+    setCanvasId(newId);
+    router.replace(`/canvas?canvasId=${newId}`);
   };
 
   // Collapsible component for <think> blocks
@@ -834,22 +849,44 @@ const CanvasEditor: React.FC = () => {
               >
                 <Link href="/saved">Saved Canvases</Link>
               </Button>
-
               <Button
+                variant="outline"
+                size="sm"
                 onClick={handleSaveCanvas}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow transition-all"
+                className="flex items-center gap-2"
               >
-                <Save size={20} />
-                Export Canvas
+                <Download size={16} />
+                Download
               </Button>
-              <Button
-                variant="destructive"
-                onClick={handleClearCanvas}
-                className="bg-rose-600 hover:bg-rose-700 text-white shadow-sm hover:shadow transition-all"
-              >
-                <Trash2 size={20} />
-                Clear Canvas
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Trash2 size={16} />
+                    Clear
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Are you absolutely sure?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete
+                      your canvas and chat history from your local storage.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClearCanvas}>
+                      Continue
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
 

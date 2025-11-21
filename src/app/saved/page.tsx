@@ -4,6 +4,17 @@ import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const SavedCanvases: React.FC = () => {
   const router = useRouter();
@@ -37,7 +48,7 @@ const SavedCanvases: React.FC = () => {
   }, []);
 
   const handleDelete = (id: string) => {
-    if (!confirm("Are you sure you want to delete this canvas?")) return;
+    // if (!confirm("Are you sure you want to delete this canvas?")) return;
 
     try {
       // Remove from index
@@ -118,13 +129,37 @@ const SavedCanvases: React.FC = () => {
                       >
                         <Link href={`/canvas?canvasId=${canvas.id}`}>Open</Link>
                       </Button>
-                      <Button
-                        variant="destructive"
-                        className="bg-rose-600 hover:bg-rose-700 text-white shadow-sm hover:shadow transition-all"
-                        onClick={() => handleDelete(canvas.id)}
-                      >
-                        Delete
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            className="bg-rose-600 hover:bg-rose-700 text-white shadow-sm hover:shadow transition-all"
+                          >
+                            Delete
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Are you absolutely sure?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will
+                              permanently delete your canvas "{canvas.name}" and
+                              its chat history.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(canvas.id)}
+                              className="bg-rose-600 hover:bg-rose-700"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </div>
