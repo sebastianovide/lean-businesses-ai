@@ -41,7 +41,7 @@ const Home: React.FC = () => {
           <div className="bg-white p-4 rounded-lg shadow-lg">
             <div className="text-center py-20">
               <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                Welcome to AI Lean Canvas
+                Welcome to AI Lean Businesses
               </h2>
               <p className="text-gray-500 mb-4">
                 Build and iterate on your business model with AI assistance

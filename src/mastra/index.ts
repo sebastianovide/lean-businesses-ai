@@ -1,14 +1,12 @@
 
 import { Mastra } from '@mastra/core/mastra';
 import { PinoLogger } from "@mastra/loggers";
-import { weatherWorkflow } from "./workflows/weather-workflow";
-import { weatherAgent } from "./agents/weather-agent";
 import { leanAgent } from "./agents/lean-agent";
 import { storage } from "./storage";
 
 export const mastra = new Mastra({
-  workflows: { weatherWorkflow },
-  agents: { weatherAgent, leanAgent },
+  workflows: {},
+  agents: { leanAgent },
   storage,
   logger: new PinoLogger({
     name: "Mastra",
