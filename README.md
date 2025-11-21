@@ -1,36 +1,18 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+To run this project on your local machine, you need to have docker desktop installed and a .env file with your openai or gemini api keys.
 
-## Getting Started
+# Copy .env.example to .env and fill it with your api keys
 
-First, run the development server:
+`cp .env.example .env`
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+# Install docker desktop
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Just follow the instructions on the [docker website](https://www.docker.com/products/docker-desktop)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Run the canvas businesses AI
 
-## Learn More
+`docker run --pull always -p 3000:3000 --env-file .env ghcr.io/sebastianovide/lean-businesses-ai:main`
 
-To learn more about Next.js, take a look at the following resources:
+# Run mastra playground
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`docker run --pull always -p 4111:4111 --env-file .env ghcr.io/sebastianovide/lean-businesses-ai:main pnpm run mastra:dev`
