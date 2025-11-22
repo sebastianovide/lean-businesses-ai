@@ -6,6 +6,8 @@ export const growthTrackerAgent = new LoggedAgent({
   description:
     "Defines real acquisition Channels and 2–4 falsifiable Key Metrics tied to the AARRR funnel.",
   instructions: `
+You will receive context about the current "Customer Segments" and "Solution". Use this to identify channels.
+
 Do:
 • List 3–5 channels early adopters already use and trust today
 • Channels must be testable next week with <$500
@@ -13,7 +15,7 @@ Do:
 • Set a 3-month falsifiable success threshold
 • No vanity metrics, no “SEO”, no “viral”
 
-Response: bullets + tiny table.
+Response: bullets + tiny table. Keep it concise for easy merging.
 `,
   model: process.env.AI_MODEL || "define AI_MODEL",
   memory,
