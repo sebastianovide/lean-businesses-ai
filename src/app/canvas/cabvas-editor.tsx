@@ -8,6 +8,9 @@ import {
   Link as LinkIcon,
   Trash2,
   Download,
+  MessageSquare,
+  X,
+  GripVertical,
 } from "lucide-react";
 
 import { v4 as uuidv4 } from "uuid";
@@ -118,6 +121,9 @@ const CanvasEditor: React.FC = () => {
 
   const [canvas, setCanvas] = useState<CanvasSection[]>(initialCanvas);
   const [localInput, setLocalInput] = useState("");
+  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [chatWidth, setChatWidth] = useState(400);
+  const [isResizing, setIsResizing] = useState(false);
 
   // Custom chat state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -458,6 +464,40 @@ const CanvasEditor: React.FC = () => {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Resize handlers
+  const startResizing = React.useCallback(
+    (mouseDownEvent: React.MouseEvent) => {
+      mouseDownEvent.preventDefault();
+      setIsResizing(true);
+    },
+    []
+  );
+
+  const stopResizing = React.useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = React.useCallback(
+    (mouseMoveEvent: MouseEvent) => {
+      if (isResizing) {
+        const newWidth = window.innerWidth - mouseMoveEvent.clientX;
+        if (newWidth > 300 && newWidth < 800) {
+          setChatWidth(newWidth);
+        }
+      }
+    },
+    [isResizing]
+  );
+
+  useEffect(() => {
+    window.addEventListener("mousemove", resize);
+    window.addEventListener("mouseup", stopResizing);
+    return () => {
+      window.removeEventListener("mousemove", resize);
+      window.removeEventListener("mouseup", stopResizing);
+    };
+  }, [resize, stopResizing]);
 
   // Helper to get section/subsection title
   const getSectionAndSubTitle = (
@@ -984,6 +1024,15 @@ const CanvasEditor: React.FC = () => {
                 <Download size={16} />
                 Download
               </Button>
+              <Button
+                variant={isChatOpen ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className="flex items-center gap-2"
+              >
+                <MessageSquare size={16} />
+                {isChatOpen ? "Hide Chat" : "Show Chat"}
+              </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -1070,9 +1119,37 @@ const CanvasEditor: React.FC = () => {
         </div>
       </div>
       {/* Chat sidebar */}
-      <aside className="w-[400px] bg-white border-l shadow-lg flex flex-col h-full z-10">
-        <div className="p-4 border-b font-bold text-lg text-blue-700 flex items-center justify-between">
+      <aside
+        className={`bg-white border-l shadow-lg flex flex-col h-full z-10 transition-all duration-300 ease-in-out relative ${
+          isChatOpen ? "" : "w-0"
+        } overflow-hidden`}
+        style={{ width: isChatOpen ? chatWidth : 0 }}
+      >
+        {/* Resize Handle */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-4 -ml-2 cursor-col-resize z-20 flex items-center justify-center group"
+          onMouseDown={startResizing}
+        >
+          {/* Hover Line */}
+          <div className="w-0.5 h-full bg-transparent group-hover:bg-blue-400 transition-colors" />
+
+          {/* Grip Icon */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-8 bg-white border border-gray-200 rounded-full shadow-sm flex items-center justify-center z-30">
+            <GripVertical size={12} className="text-gray-400" />
+          </div>
+        </div>
+
+        <div
+          className="p-4 border-b font-bold text-lg text-blue-700 flex items-center justify-between"
+          style={{ minWidth: chatWidth }}
+        >
           <span>AI Brainstorm Chat</span>
+          <button
+            onClick={() => setIsChatOpen(false)}
+            className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {/* Config Modal/Popover - Simplified for now */}
@@ -1099,7 +1176,10 @@ const CanvasEditor: React.FC = () => {
             </div>
           </div>
         )}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div
+          className="flex-1 overflow-y-auto p-4 space-y-2"
+          style={{ minWidth: chatWidth }}
+        >
           {messages.length === 0 && (
             <div className="text-gray-400 text-sm text-center">
               Start brainstorming with the AI!
@@ -1279,7 +1359,11 @@ const CanvasEditor: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleFormSubmit} className="p-4 border-t flex gap-2">
+        <form
+          onSubmit={handleFormSubmit}
+          className="p-4 border-t flex gap-2"
+          style={{ minWidth: chatWidth }}
+        >
           <input
             type="text"
             className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
