@@ -916,7 +916,7 @@ const CanvasEditor: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6 flex items-center">
+    <div className="h-screen w-full bg-gray-100 flex overflow-hidden">
       <style>{`
         .dot-typing {
           display: inline-block;
@@ -942,11 +942,11 @@ const CanvasEditor: React.FC = () => {
           100% { opacity: 0.2; transform: translateY(0); }
         }
       `}</style>
-      <div className="max-w-7xl mx-auto px-4 flex gap-6 w-full">
+      <div className="flex-1 flex flex-col h-full min-w-0">
         {/* Main content (canvas) */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 flex flex-col min-h-0">
           {/* Navigation */}
-          <div className="text-center mb-6">
+          <div className="text-center py-4 bg-white border-b px-6">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Lean Canvas Editor
             </h1>
@@ -1017,281 +1017,279 @@ const CanvasEditor: React.FC = () => {
           </div>
 
           {/* Lean Canvas Grid Layout */}
-          <div className="bg-white p-4 rounded-lg shadow-lg">
-            <div className="grid grid-cols-10 grid-rows-3 gap-0 h-[600px]">
-              {/* Row 1 */}
-              <div className="col-span-2 row-span-2">
-                {renderSection(getSectionById("problem"), "bg-orange-50")}
-              </div>
-              <div className="col-span-2">
-                {renderSection(getSectionById("solution"), "bg-blue-50")}
-              </div>
-              <div className="col-span-2 row-span-2">
-                {renderSection(
-                  getSectionById("unique-value-proposition"),
-                  "bg-yellow-50"
-                )}
-              </div>
-              <div className="col-span-2">
-                {renderSection(
-                  getSectionById("unfair-advantage"),
-                  "bg-purple-50"
-                )}
-              </div>
-              <div className="col-span-2 row-span-2">
-                {renderSection(
-                  getSectionById("customer-segments"),
-                  "bg-indigo-50"
-                )}
-              </div>
+          <div className="flex-1 bg-gray-50 p-6 overflow-hidden flex flex-col">
+            <div className="bg-white p-4 rounded-lg shadow-lg flex-1 flex flex-col min-h-0">
+              <div className="grid grid-cols-10 grid-rows-3 gap-0 h-full">
+                {/* Row 1 */}
+                <div className="col-span-2 row-span-2">
+                  {renderSection(getSectionById("problem"), "bg-orange-50")}
+                </div>
+                <div className="col-span-2">
+                  {renderSection(getSectionById("solution"), "bg-blue-50")}
+                </div>
+                <div className="col-span-2 row-span-2">
+                  {renderSection(
+                    getSectionById("unique-value-proposition"),
+                    "bg-yellow-50"
+                  )}
+                </div>
+                <div className="col-span-2">
+                  {renderSection(
+                    getSectionById("unfair-advantage"),
+                    "bg-purple-50"
+                  )}
+                </div>
+                <div className="col-span-2 row-span-2">
+                  {renderSection(
+                    getSectionById("customer-segments"),
+                    "bg-indigo-50"
+                  )}
+                </div>
 
-              {/* Row 2 */}
-              <div className="col-span-2">
-                {renderSection(getSectionById("key-metrics"), "bg-teal-50")}
-              </div>
-              <div className="col-span-2">
-                {renderSection(getSectionById("channels"), "bg-cyan-50")}
-              </div>
+                {/* Row 2 */}
+                <div className="col-span-2">
+                  {renderSection(getSectionById("key-metrics"), "bg-teal-50")}
+                </div>
+                <div className="col-span-2">
+                  {renderSection(getSectionById("channels"), "bg-cyan-50")}
+                </div>
 
-              {/* Row 3 */}
-              <div className="col-span-5">
-                {renderSection(getSectionById("cost-structure"), "bg-red-50")}
-              </div>
-              <div className="col-span-5">
-                {renderSection(
-                  getSectionById("revenue-streams"),
-                  "bg-green-50"
-                )}
+                {/* Row 3 */}
+                <div className="col-span-5">
+                  {renderSection(getSectionById("cost-structure"), "bg-red-50")}
+                </div>
+                <div className="col-span-5">
+                  {renderSection(
+                    getSectionById("revenue-streams"),
+                    "bg-green-50"
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
-        {/* Chat sidebar */}
-        <aside className="w-80 bg-white rounded-lg shadow-lg flex flex-col h-[800px]">
-          <div className="p-4 border-b font-bold text-lg text-blue-700 flex items-center justify-between">
-            <span>AI Brainstorm Chat</span>
-          </div>
+      </div>
+      {/* Chat sidebar */}
+      <aside className="w-[400px] bg-white border-l shadow-lg flex flex-col h-full z-10">
+        <div className="p-4 border-b font-bold text-lg text-blue-700 flex items-center justify-between">
+          <span>AI Brainstorm Chat</span>
+        </div>
 
-          {/* Config Modal/Popover - Simplified for now */}
-          {showConfig && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-              <div className="bg-white rounded-lg shadow-lg p-6 w-80 relative">
-                <button
-                  className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
-                  onClick={() => setShowConfig(false)}
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-                <h2 className="text-lg font-bold mb-4 text-blue-700">
-                  AI Service Configuration
-                </h2>
-                <p className="text-sm text-gray-600 mb-4">
-                  The AI service is now managed by the Mastra server agent.
-                  Client-side configuration is disabled.
-                </p>
-                <Button onClick={() => setShowConfig(false)} className="w-full">
-                  Close
-                </Button>
-              </div>
+        {/* Config Modal/Popover - Simplified for now */}
+        {showConfig && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-80 relative">
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
+                onClick={() => setShowConfig(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+              <h2 className="text-lg font-bold mb-4 text-blue-700">
+                AI Service Configuration
+              </h2>
+              <p className="text-sm text-gray-600 mb-4">
+                The AI service is now managed by the Mastra server agent.
+                Client-side configuration is disabled.
+              </p>
+              <Button onClick={() => setShowConfig(false)} className="w-full">
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {messages.length === 0 && (
+            <div className="text-gray-400 text-sm text-center">
+              Start brainstorming with the AI!
             </div>
           )}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {messages.length === 0 && (
-              <div className="text-gray-400 text-sm text-center">
-                Start brainstorming with the AI!
-              </div>
-            )}
-            {messages.map((msg: any, idx: number, arr: any[]) => {
-              // Safety check for msg.content
-              if (!msg || !msg.content) {
-                return null;
-              }
+          {messages.map((msg: any, idx: number, arr: any[]) => {
+            // Safety check for msg.content
+            if (!msg || !msg.content) {
+              return null;
+            }
 
-              // Enhanced: Split message content by <think>...</think> blocks, handling incomplete blocks
-              const parts: Array<{
-                type: "text" | "think";
-                content: string;
-                thinkKey?: string;
-              }> = [];
-              const regex = /<think>([\s\S]*?)(<\/think>|$)/g;
-              let lastIndex = 0;
-              let match;
-              while ((match = regex.exec(msg.content)) !== null) {
-                if (match.index > lastIndex) {
-                  parts.push({
-                    type: "text",
-                    content: msg.content.slice(lastIndex, match.index),
-                  });
-                }
-                // Use the start index of the <think> block as a stable key
-                parts.push({
-                  type: "think",
-                  content: match[1],
-                  thinkKey: `${msg.id}-${match.index}`,
-                });
-                lastIndex = regex.lastIndex;
-                if (match[2] !== "</think>") break;
-              }
-              if (lastIndex < msg.content.length) {
+            // Enhanced: Split message content by <think>...</think> blocks, handling incomplete blocks
+            const parts: Array<{
+              type: "text" | "think";
+              content: string;
+              thinkKey?: string;
+            }> = [];
+            const regex = /<think>([\s\S]*?)(<\/think>|$)/g;
+            let lastIndex = 0;
+            let match;
+            while ((match = regex.exec(msg.content)) !== null) {
+              if (match.index > lastIndex) {
                 parts.push({
                   type: "text",
-                  content: msg.content.slice(lastIndex),
+                  content: msg.content.slice(lastIndex, match.index),
                 });
               }
-              // Determine if this is the last message and a bot message and AI is thinking (streaming)
-              const isStreamingBotMsg =
-                aiThinking &&
-                idx === arr.length - 1 &&
-                msg.role === "assistant";
-              return (
+              // Use the start index of the <think> block as a stable key
+              parts.push({
+                type: "think",
+                content: match[1],
+                thinkKey: `${msg.id}-${match.index}`,
+              });
+              lastIndex = regex.lastIndex;
+              if (match[2] !== "</think>") break;
+            }
+            if (lastIndex < msg.content.length) {
+              parts.push({
+                type: "text",
+                content: msg.content.slice(lastIndex),
+              });
+            }
+            // Determine if this is the last message and a bot message and AI is thinking (streaming)
+            const isStreamingBotMsg =
+              aiThinking && idx === arr.length - 1 && msg.role === "assistant";
+            return (
+              <div
+                key={msg.id}
+                className={`flex ${
+                  msg.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
                 <div
-                  key={msg.id}
-                  className={`flex ${
-                    msg.role === "user" ? "justify-end" : "justify-start"
+                  className={`px-3 py-2 rounded-lg max-w-[70%] text-sm whitespace-pre-line ${
+                    msg.role === "user"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-200 text-gray-800"
                   }`}
                 >
-                  <div
-                    className={`px-3 py-2 rounded-lg max-w-[70%] text-sm whitespace-pre-line ${
-                      msg.role === "user"
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-200 text-gray-800"
-                    }`}
-                  >
-                    {/* Agent Activity - Collapsible (Collapsed by Default) */}
-                    {msg.role === "assistant" &&
-                      msg.agentActivity &&
-                      msg.agentActivity.length > 0 && (
-                        <Collapsible
-                          label={`🤖 Agent Activity (${msg.agentActivity.length} events)`}
-                          open={collapsibleOpen[`activity-${msg.id}`] === true}
-                          onToggle={() => {
+                  {/* Agent Activity - Collapsible (Collapsed by Default) */}
+                  {msg.role === "assistant" &&
+                    msg.agentActivity &&
+                    msg.agentActivity.length > 0 && (
+                      <Collapsible
+                        label={`🤖 Agent Activity (${msg.agentActivity.length} events)`}
+                        open={collapsibleOpen[`activity-${msg.id}`] === true}
+                        onToggle={() => {
+                          setCollapsibleOpen(
+                            (prev: Record<string, boolean>) => ({
+                              ...prev,
+                              [`activity-${msg.id}`]:
+                                !prev[`activity-${msg.id}`],
+                            })
+                          );
+                        }}
+                      >
+                        <div className="space-y-1">
+                          {msg.agentActivity.map(
+                            (
+                              activity: {
+                                type: string;
+                                agent: string;
+                                timestamp: number;
+                              },
+                              idx: number
+                            ) => {
+                              const friendlyName = formatAgentName(
+                                activity.agent
+                              );
+                              let icon = "🤖";
+                              let text = "";
+
+                              if (activity.type === "start") {
+                                icon = "▶️";
+                                text = `${friendlyName} started`;
+                              } else if (activity.type === "finish") {
+                                icon = "✅";
+                                text = `${friendlyName} completed`;
+                              } else if (activity.type === "delegation") {
+                                icon = "🔄";
+                                text = `Delegated to ${friendlyName}`;
+                              }
+
+                              return (
+                                <div
+                                  key={idx}
+                                  className="text-xs flex items-start gap-1"
+                                >
+                                  <span>{icon}</span>
+                                  <span>{text}</span>
+                                </div>
+                              );
+                            }
+                          )}
+                        </div>
+                      </Collapsible>
+                    )}
+
+                  {/* Message Content */}
+                  {parts.map((part, partIdx) =>
+                    part.type === "think" ? (
+                      <Collapsible
+                        key={part.thinkKey}
+                        label="AI internal reasoning"
+                        open={
+                          isStreamingBotMsg
+                            ? true
+                            : !!collapsibleOpen[part.thinkKey!]
+                        }
+                        onToggle={() => {
+                          if (!isStreamingBotMsg) {
                             setCollapsibleOpen(
                               (prev: Record<string, boolean>) => ({
                                 ...prev,
-                                [`activity-${msg.id}`]:
-                                  !prev[`activity-${msg.id}`],
+                                [part.thinkKey!]: !prev[part.thinkKey!],
                               })
                             );
-                          }}
-                        >
-                          <div className="space-y-1">
-                            {msg.agentActivity.map(
-                              (
-                                activity: {
-                                  type: string;
-                                  agent: string;
-                                  timestamp: number;
-                                },
-                                idx: number
-                              ) => {
-                                const friendlyName = formatAgentName(
-                                  activity.agent
-                                );
-                                let icon = "🤖";
-                                let text = "";
-
-                                if (activity.type === "start") {
-                                  icon = "▶️";
-                                  text = `${friendlyName} started`;
-                                } else if (activity.type === "finish") {
-                                  icon = "✅";
-                                  text = `${friendlyName} completed`;
-                                } else if (activity.type === "delegation") {
-                                  icon = "🔄";
-                                  text = `Delegated to ${friendlyName}`;
-                                }
-
-                                return (
-                                  <div
-                                    key={idx}
-                                    className="text-xs flex items-start gap-1"
-                                  >
-                                    <span>{icon}</span>
-                                    <span>{text}</span>
-                                  </div>
-                                );
-                              }
-                            )}
-                          </div>
-                        </Collapsible>
-                      )}
-
-                    {/* Message Content */}
-                    {parts.map((part, partIdx) =>
-                      part.type === "think" ? (
-                        <Collapsible
-                          key={part.thinkKey}
-                          label="AI internal reasoning"
-                          open={
-                            isStreamingBotMsg
-                              ? true
-                              : !!collapsibleOpen[part.thinkKey!]
                           }
-                          onToggle={() => {
-                            if (!isStreamingBotMsg) {
-                              setCollapsibleOpen(
-                                (prev: Record<string, boolean>) => ({
-                                  ...prev,
-                                  [part.thinkKey!]: !prev[part.thinkKey!],
-                                })
-                              );
-                            }
-                          }}
-                          forceOpenNoToggle={isStreamingBotMsg}
-                        >
-                          {part.content.trim()}
-                        </Collapsible>
-                      ) : (
-                        part.content && (
-                          <span key={partIdx}>{part.content}</span>
-                        )
-                      )
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            {/* AI typing indicator with agent status - COMPACT */}
-            {aiThinking && (
-              <div className="flex justify-start">
-                <div className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600 border border-gray-300">
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-block">
-                      <span className="dot-typing">
-                        <span className="dot"></span>
-                        <span className="dot"></span>
-                        <span className="dot"></span>
-                      </span>
-                    </span>
-                    {agentStatus && (
-                      <span className="font-medium">{agentStatus}</span>
-                    )}
-                  </div>
+                        }}
+                        forceOpenNoToggle={isStreamingBotMsg}
+                      >
+                        {part.content.trim()}
+                      </Collapsible>
+                    ) : (
+                      part.content && <span key={partIdx}>{part.content}</span>
+                    )
+                  )}
                 </div>
               </div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
-
-          {error && (
-            <div className="px-4 py-2 bg-red-50 border-t border-red-100 text-red-600 text-xs">
-              <span>Error: {error.message || "Failed to send message"}</span>
+            );
+          })}
+          {/* AI typing indicator with agent status - COMPACT */}
+          {aiThinking && (
+            <div className="flex justify-start">
+              <div className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600 border border-gray-300">
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block">
+                    <span className="dot-typing">
+                      <span className="dot"></span>
+                      <span className="dot"></span>
+                      <span className="dot"></span>
+                    </span>
+                  </span>
+                  {agentStatus && (
+                    <span className="font-medium">{agentStatus}</span>
+                  )}
+                </div>
+              </div>
             </div>
           )}
+          <div ref={chatEndRef} />
+        </div>
 
-          <form onSubmit={handleFormSubmit} className="p-4 border-t flex gap-2">
-            <input
-              type="text"
-              className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              placeholder="Ask the AI..."
-              value={localInput}
-              onChange={(e) => setLocalInput(e.target.value)}
-            />
-            <Button type="submit">Send</Button>
-          </form>
-        </aside>
-      </div>
+        {error && (
+          <div className="px-4 py-2 bg-red-50 border-t border-red-100 text-red-600 text-xs">
+            <span>Error: {error.message || "Failed to send message"}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleFormSubmit} className="p-4 border-t flex gap-2">
+          <input
+            type="text"
+            className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="Ask the AI..."
+            value={localInput}
+            onChange={(e) => setLocalInput(e.target.value)}
+          />
+          <Button type="submit">Send</Button>
+        </form>
+      </aside>
     </div>
   );
 };
