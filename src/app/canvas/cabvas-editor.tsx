@@ -630,28 +630,7 @@ const CanvasEditor: React.FC = () => {
     });
 
     // Only send chat message if removedItem is non-empty
-    if (removedItem.trim() !== "") {
-      // Send chat message AFTER state update, outside of setCanvas callback
-      const updatedItems = getCurrentItems(sectionId, subsectionTitle).filter(
-        (_, i) => i !== index
-      );
-      const { sectionTitle, subsectionTitle: subTitle } = getSectionAndSubTitle(
-        sectionId,
-        subsectionTitle
-      );
-      sendMessage(
-        `Removed '${removedItem}' from${
-          subTitle ? ` ${subTitle}` : sectionTitle ? ` ${sectionTitle}` : ""
-        }. Now the list is: ${
-          updatedItems.filter((i) => i).length
-            ? updatedItems
-                .filter((i) => i)
-                .map((i) => `'${i}'`)
-                .join(", ")
-            : "(empty)"
-        }`
-      );
-    }
+    // Chat trigger removed as per user request
   };
 
   // Modified updateItem: only update value, do not send bot message
@@ -706,6 +685,7 @@ const CanvasEditor: React.FC = () => {
       return;
     }
     // Only send bot message if this is the pending new item and value is non-empty
+    // Chat trigger removed as per user request
     if (
       value.trim() !== "" &&
       editing &&
@@ -713,22 +693,6 @@ const CanvasEditor: React.FC = () => {
       editing.index === index &&
       editing.subsectionTitle === subsectionTitle
     ) {
-      const { sectionTitle, subsectionTitle: subTitle } = getSectionAndSubTitle(
-        sectionId,
-        subsectionTitle
-      );
-      sendMessage(
-        `Added '${value}' to${
-          subTitle ? ` ${subTitle}` : sectionTitle ? ` ${sectionTitle}` : ""
-        }. Now the list is: ${
-          items.filter((i) => i).length
-            ? items
-                .filter((i) => i)
-                .map((i) => `'${i}'`)
-                .join(", ")
-            : "(empty)"
-        }`
-      );
       setPendingNewItem(null);
     }
     setEditing(null);
