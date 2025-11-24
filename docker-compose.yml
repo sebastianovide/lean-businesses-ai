@@ -1,0 +1,19 @@
+services:
+  app:
+    image: ghcr.io/sebastianovide/lean-businesses-ai:main
+    pull_policy: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  mastra:
+    image: ghcr.io/sebastianovide/lean-businesses-ai:main
+    pull_policy: always
+    ports:
+      - "4111:4111"
+    env_file:
+      - .env
+    command: pnpm run mastra:dev
+    restart: unless-stopped

@@ -1,18 +1,60 @@
-To run this project on your local machine, you need to have docker desktop installed and a .env file with your openai or gemini api keys.
+# Lean Business AI - Setup Guide
 
-# Copy .env.example to .env and fill it with your api keys
+## Prerequisites
 
-`cp .env.example .env`
+- Docker Desktop installed on your computer
+- An OpenAI or Gemini API key
 
+## Setup Steps
 
-# Install docker desktop
+### 1. Get Your API Key
 
-Just follow the instructions on the [docker website](https://www.docker.com/products/docker-desktop)
+Create an account and get an API key from:
+- [OpenAI](https://platform.openai.com/api-keys) or
+- [Google AI Studio](https://aistudio.google.com/app/apikey) (for Gemini)
 
-# Run the canvas businesses AI
+### 2. Configure Environment
 
-`docker run --pull always -p 3000:3000 --env-file .env ghcr.io/sebastianovide/lean-businesses-ai:main`
+Copy the example environment file:
 
-# Run mastra playground
+```bash
+cp .env.example .env
+```
 
-`docker run --pull always -p 4111:4111 --env-file .env ghcr.io/sebastianovide/lean-businesses-ai:main pnpm run mastra:dev`
+Open `.env` in a text editor and configure:
+
+**Required:**
+- Add your API key (OpenAI or Gemini)
+- Set your AI model
+
+**Example configuration for OpenAI:**
+```
+OPENAI_API_KEY=sk-proj-your-key-here
+AI_MODEL=openai/gpt-5-pro
+```
+
+**Example configuration for Gemini:**
+```
+GOOGLE_GENERATIVE_AI_API_KEY=your-key-here
+AI_MODEL=google/gemini-2.5-pro
+```
+
+**Important:** The `.env` file must be in the same folder as `docker-compose.yml`.
+
+### 3. Install Docker Desktop
+
+Download and install from: [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop)
+
+### 4. Run the Application
+
+```bash
+docker compose up
+```
+
+Once running, open your browser to:
+- **Main App**: `http://localhost:3000`
+- **Mastra Playground**: `http://localhost:4111`
+
+## Stop the Application
+
+Press `Ctrl+C` in the terminal.
