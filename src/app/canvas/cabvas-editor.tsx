@@ -239,24 +239,6 @@ const CanvasEditor: React.FC = () => {
     updateCanvasIndex(canvasId, canvasName);
   }, [canvasName, canvasId]);
 
-  // Load messages when canvasId changes
-  useEffect(() => {
-    if (!canvasId) return;
-
-    const loadMessages = async () => {
-      try {
-        const response = await fetch(`/api/chat?canvasId=${canvasId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setMessages(data);
-        }
-      } catch (err) {
-        console.error("Failed to load messages:", err);
-      }
-    };
-    loadMessages();
-  }, [canvasId, setMessages]);
-
   // No manual sendMessage needed - useChat handles this
 
   // Helper to format agent names for display

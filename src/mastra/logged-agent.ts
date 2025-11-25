@@ -42,15 +42,20 @@ export class LoggedAgent extends Agent {
       });
     }
     
+    const startTime = Date.now();
     try {
       // @ts-ignore
       const result = await super.network(...args);
-      console.log(`\n✅ [Agent: ${this.name}] Network request completed`);
+      const duration = Date.now() - startTime;
+      console.log(
+        `\n✅ [Agent: ${this.name}] Network request completed in ${duration}ms`
+      );
       console.log(`${"=".repeat(60)}\n`);
       return result;
     } catch (error) {
+      const duration = Date.now() - startTime;
       console.error(
-        `\n❌ [Agent: ${this.name}] Network request failed:`,
+        `\n❌ [Agent: ${this.name}] Network request failed after ${duration}ms:`,
         error
       );
       console.log(`${"=".repeat(60)}\n`);

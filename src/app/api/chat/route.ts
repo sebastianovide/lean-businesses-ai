@@ -54,6 +54,9 @@ export async function POST(req: Request) {
   const { messages, canvasId, canvasState } = await req.json();
 
   const canvasStateString = convertCanvasStateToString(canvasState);
+  logger.info(
+    `Canvas state string length: ${canvasStateString.length} characters`
+  );
 
   logger.info("Messages sent to agent", { messages, canvasId, canvasState });
 
@@ -111,6 +114,7 @@ export async function POST(req: Request) {
       runtimeContext,
     });
 
+    const startTime = Date.now();
     const networkStream = await leanCanvasOrchestratorAgent.network(
       messageText,
       {
@@ -119,9 +123,11 @@ export async function POST(req: Request) {
           resource: "lean-chat",
         },
         runtimeContext,
-        maxSteps: 10, // Allow proper delegation: route → delegate → process → synthesize → respond
+        maxSteps: 3, // Limit steps to prevent infinite loops. 3 is enough for route -> delegate -> respond.
       }
     );
+    const duration = Date.now() - startTime;
+    logger.info(`Agent network call took ${duration}ms`);
 
     // Transform stream into AI SDK format and create UI messages stream
     const aiSdkStream = toAISdkFormat(networkStream, { from: "network" });
@@ -174,41 +180,5 @@ export async function POST(req: Request) {
       },
       { status: 500 }
     );
-  }
-}
-
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const canvasId = searchParams.get("canvasId");
-
-  if (!canvasId) {
-    return NextResponse.json(
-      { error: "canvasId is required" },
-      { status: 400 }
-    );
-  }
-
-  const memory = await leanCanvasOrchestratorAgent.getMemory();
-
-  try {
-    const response = await memory?.query({
-      threadId: canvasId,
-      resourceId: "lean-chat",
-    });
-
-    logger.info("Memory query result", {
-      canvasId,
-      uiMessages: response?.uiMessages ?? [],
-    });
-
-    const uiMessages = convertMessages(response?.uiMessages ?? []).to(
-      "AIV5.UI"
-    );
-
-    logger.info("Converted UI messages", { uiMessages });
-    return NextResponse.json(uiMessages);
-  } catch (error) {
-    // Return empty array if thread doesn't exist yet
-    return NextResponse.json([]);
   }
 }
