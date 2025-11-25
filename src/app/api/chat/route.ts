@@ -20,8 +20,40 @@ interface CanvasSection {
   subsections?: { title: string; items: string[] }[];
 }
 
+function convertCanvasStateToString(canvasState: CanvasSection[]) {
+  let canvasString = "=== Start of Lean Canvas State ===\n";
+
+  canvasState
+    .sort((a, b) => a.order - b.order)
+    .forEach((section) => {
+      canvasString += `## ${section.title}\n\n`;
+      section.items?.forEach((item) => {
+        canvasString += `* ${item}\n`;
+      });
+      if ((section.items?.length ?? 0) > 0) {
+        canvasString += "\n";
+      }
+
+      section.subsections?.forEach((subsection) => {
+        canvasString += `### ${subsection.title}:\n\n`;
+        subsection.items?.forEach((item) => {
+          canvasString += `* ${item}\n`;
+        });
+        if ((subsection.items?.length ?? 0) > 0) {
+          canvasString += "\n";
+        }
+      });
+    });
+
+  canvasString += "\n=== End of Lean Canvas State ===\n";
+
+  return canvasString;
+}
+
 export async function POST(req: Request) {
   const { messages, canvasId, canvasState } = await req.json();
+
+  const canvasStateString = convertCanvasStateToString(canvasState);
 
   logger.info("Messages sent to agent", { messages, canvasId, canvasState });
 
@@ -73,7 +105,7 @@ export async function POST(req: Request) {
 
     // Create runtime context with canvas state
     const runtimeContext = new RuntimeContext();
-    runtimeContext.set("canvasState", canvasState);
+    runtimeContext.set("canvasState", canvasStateString);
 
     logger.info("r untimeContext", {
       runtimeContext,
@@ -125,8 +157,8 @@ export async function POST(req: Request) {
     console.error("Error message:", err?.message);
     console.error("Error stack:", err?.stack);
     console.error("Input - canvasId:", canvasId);
-    console.error("Input - lastMessage:", JSON.stringify(lastMessage, null, 2));
-    console.error("Input - canvasState:", JSON.stringify(canvasState, null, 2));
+    console.error("Input - lastMessage:", lastMessage);
+    console.error("Input - canvasState:", canvasStateString);
 
     logger.error("Error in chat route", {
       error,

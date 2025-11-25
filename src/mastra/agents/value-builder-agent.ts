@@ -10,8 +10,8 @@ export const valueBuilderAgent = new LoggedAgent({
     return `
 Activate only after top problems are ranked.
 
-Current Canvas Context:
-${JSON.stringify(canvasState, null, 2)}
+Current Canvas State:
+${canvasState}
 
 You will receive context about the current "Problem" and "Solution". Use this to craft the UVP.
 

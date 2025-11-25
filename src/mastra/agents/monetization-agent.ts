@@ -10,8 +10,8 @@ export const monetizationAgent = new LoggedAgent({
     return `
 Force explicit pricing and proof people will pay.
 
-Current Canvas Context:
-${JSON.stringify(canvasState, null, 2)}
+Current Canvas State:
+${canvasState}
 
 You will receive context about the current "Revenue Streams", "Cost Structure", and "Solution". Use this to validate the business model.
 

@@ -10,8 +10,8 @@ export const edgeAuditorAgent = new LoggedAgent({
     return `
 Mantra: If it can be copied or bought in <12 months, it’s not an unfair advantage.
 
-Current Canvas Context:
-${JSON.stringify(canvasState, null, 2)}
+Current Canvas State:
+${canvasState}
 
 You will receive context about the entire canvas. Use this to pressure test the "Unfair Advantage".
 

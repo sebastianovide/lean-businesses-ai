@@ -10,8 +10,8 @@ export const customerInsightAgent = new LoggedAgent({
     return `
 You are brutal and concise. Never accept vague segments like "small businesses" or "everyone".
 
-Current Canvas Context:
-${JSON.stringify(canvasState, null, 2)}
+Current Canvas State:
+${canvasState}
 
 Use this context to see the current "Customer Segments" and "Problem" sections.
 Use this information to narrow down the target audience and validate problems.

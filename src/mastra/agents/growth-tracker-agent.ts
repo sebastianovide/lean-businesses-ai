@@ -8,8 +8,8 @@ export const growthTrackerAgent = new LoggedAgent({
   instructions: async ({ runtimeContext }) => {
     const canvasState = runtimeContext?.get("canvasState") || [];
     return `
-Current Canvas Context:
-${JSON.stringify(canvasState, null, 2)}
+Current Canvas State:
+${canvasState}
 
 You will receive context about the current "Customer Segments" and "Solution". Use this to identify channels.
 

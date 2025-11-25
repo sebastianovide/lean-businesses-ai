@@ -22,9 +22,8 @@ Canvas order logic:
 • Empty canvas → Fulcrum order: Customer Segments → Problem → Revenue Streams → Solution → UVP → Channels → Key Metrics → Cost Structure → Unfair Advantage
 • Partial canvas → Fill gaps, fall back to problem-first if stuck
 
-Canvas Context:
 Current Canvas State:
-${JSON.stringify(canvasState, null, 2)}
+${canvasState}
 
 Delegation Rules:
 You have access to specialist agents. Consult them when you need deep expertise, validation, or specific calculations for a section.

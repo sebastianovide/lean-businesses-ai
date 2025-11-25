@@ -53,6 +53,7 @@ interface Message {
 const initialCanvas: CanvasSection[] = [
   {
     id: "problem",
+    title: "Problem",
     order: 2,
     subsections: [
       { title: "Problem", items: [] },
@@ -73,6 +74,7 @@ const initialCanvas: CanvasSection[] = [
   },
   {
     id: "unique-value-proposition",
+    title: "Unique Value Proposition",
     order: 3,
     subsections: [
       { title: "Unique Value Proposition", items: [] },
@@ -93,6 +95,7 @@ const initialCanvas: CanvasSection[] = [
   },
   {
     id: "customer-segments",
+    title: "Customer Segments",
     order: 1,
     subsections: [
       { title: "Customer Segments", items: [] },
