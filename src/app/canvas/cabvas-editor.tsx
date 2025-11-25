@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import {
   Save,
   Plus,
@@ -120,16 +122,22 @@ const CanvasEditor: React.FC = () => {
   const [canvasName, setCanvasName] = useState<string>("Untitled Canvas");
 
   const [canvas, setCanvas] = useState<CanvasSection[]>(initialCanvas);
-  const [localInput, setLocalInput] = useState("");
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [chatWidth, setChatWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
 
-  // Custom chat state
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [aiThinking, setAiThinking] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [agentStatus, setAgentStatus] = useState<string | null>(null); // Track which agent is working
+  // Custom state for agent tracking
+  const [agentStatus, setAgentStatus] = useState<string | null>(null);
+
+  // Manual input state
+  const [inputValue, setInputValue] = useState("");
+
+  // useChat hook with DefaultChatTransport
+  const { messages, sendMessage, status, error, setMessages } = useChat({
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+    }),
+  });
 
   // Initialize canvas ID from URL or generate new
   useEffect(() => {
@@ -216,7 +224,7 @@ const CanvasEditor: React.FC = () => {
 
     // Update index with new timestamp
     updateCanvasIndex(canvasId, canvasName);
-  }, [canvas, canvasId]); // Note: canvasName is not in dependency to avoid double updates, but we use current value
+  }, [canvas, canvasId]);
 
   // Auto-save canvas name to local storage whenever it changes
   useEffect(() => {
@@ -244,176 +252,9 @@ const CanvasEditor: React.FC = () => {
       }
     };
     loadMessages();
-  }, [canvasId]);
+  }, [canvasId, setMessages]);
 
-  // Track if a request is in progress
-  const isRequestInProgress = useRef(false);
-
-  // Function to send a message
-  const sendMessage = async (content: string) => {
-    // Prevent multiple simultaneous requests
-    if (isRequestInProgress.current) {
-      console.log("Request already in progress, skipping");
-      return;
-    }
-
-    const userMessage: Message = {
-      id: uuidv4(),
-      role: "user",
-      content,
-    };
-
-    // Add user message to state
-    setMessages((prev) => [...prev, userMessage]);
-    setAiThinking(true);
-    setError(null);
-    setAgentStatus("Connecting...");
-    isRequestInProgress.current = true;
-
-    // Build the messages array to send to API
-    const messagesToSend = [...messages, userMessage];
-
-    // Create a temporary assistant message that we'll update
-    const assistantMessageId = uuidv4();
-    let accumulatedText = "";
-    const agentActivity: Array<{
-      type: "start" | "finish" | "delegation";
-      agent: string;
-      timestamp: number;
-    }> = [];
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: messagesToSend,
-          canvasId,
-          canvasState: canvas, // Send current canvas state for context
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to send message");
-      }
-
-      // Handle Server-Sent Events
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        throw new Error("No response body");
-      }
-
-      // Add empty assistant message that we'll update
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: assistantMessageId,
-          role: "assistant",
-          content: "",
-          agentActivity: [],
-        },
-      ]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              console.log("[SSE Event]", data); // DEBUG: See what we're receiving
-
-              if (data.type === "agent-start") {
-                // Agent started working
-                console.log("[Agent Start]", data.agent); // DEBUG
-                const friendlyName = formatAgentName(data.agent);
-                setAgentStatus(friendlyName);
-                agentActivity.push({
-                  type: "start",
-                  agent: data.agent,
-                  timestamp: Date.now(),
-                });
-                // Update message with activity
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantMessageId
-                      ? { ...msg, agentActivity: [...agentActivity] }
-                      : msg
-                  )
-                );
-              } else if (data.type === "agent-finish") {
-                // Agent finished
-                console.log("[Agent Finish]", data.agent); // DEBUG
-                agentActivity.push({
-                  type: "finish",
-                  agent: data.agent,
-                  timestamp: Date.now(),
-                });
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantMessageId
-                      ? { ...msg, agentActivity: [...agentActivity] }
-                      : msg
-                  )
-                );
-              } else if (data.type === "tool-call") {
-                // Agent delegating to another agent
-                console.log("[Tool Call]", data.tool); // DEBUG
-                const friendlyName = formatAgentName(data.tool);
-                setAgentStatus(`→ ${friendlyName}`);
-                agentActivity.push({
-                  type: "delegation",
-                  agent: data.tool,
-                  timestamp: Date.now(),
-                });
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantMessageId
-                      ? { ...msg, agentActivity: [...agentActivity] }
-                      : msg
-                  )
-                );
-              } else if (data.type === "text-delta") {
-                // Text chunk received
-                console.log("[Text Delta]", data.text.substring(0, 50)); // DEBUG: First 50 chars
-                accumulatedText += data.text;
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantMessageId
-                      ? { ...msg, content: accumulatedText }
-                      : msg
-                  )
-                );
-              } else if (data.type === "done") {
-                // Stream complete
-                setAgentStatus(null);
-                break;
-              }
-            } catch (e) {
-              console.error("Failed to parse SSE data:", e);
-            }
-          }
-        }
-      }
-    } catch (err) {
-      setError(err as Error);
-      console.error("Chat error:", err);
-      // Remove the empty assistant message if there was an error
-      setMessages((prev) =>
-        prev.filter((msg) => msg.id !== assistantMessageId)
-      );
-    } finally {
-      setAiThinking(false);
-      setAgentStatus(null);
-      isRequestInProgress.current = false;
-    }
-  };
+  // No manual sendMessage needed - useChat handles this
 
   // Helper to format agent names for display
   const formatAgentName = (agentName: string): string => {
@@ -427,10 +268,19 @@ const CanvasEditor: React.FC = () => {
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!localInput.trim()) return;
+    if (!inputValue.trim()) return;
 
-    sendMessage(localInput);
-    setLocalInput("");
+    // Pass additional data in the second argument
+    sendMessage(
+      { text: inputValue },
+      {
+        body: {
+          canvasId,
+          canvasState: canvas,
+        },
+      }
+    );
+    setInputValue("");
   };
 
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -1150,8 +1000,26 @@ const CanvasEditor: React.FC = () => {
             </div>
           )}
           {messages.map((msg: any, idx: number, arr: any[]) => {
-            // Safety check for msg.content
-            if (!msg || !msg.content) {
+            // Extract content from UIMessage format
+            let messageContent = "";
+
+            if (msg.parts && Array.isArray(msg.parts)) {
+              // UIMessage format - extract text from parts
+              for (const part of msg.parts) {
+                if (part.type === "text" && part.text) {
+                  messageContent += part.text;
+                } else if (part.type === "data-network" && part.data?.output) {
+                  // Extract output from data-network parts (agent responses)
+                  messageContent += part.data.output;
+                }
+              }
+            } else if (typeof msg.content === "string") {
+              // Fallback for old format
+              messageContent = msg.content;
+            }
+
+            // Skip messages with no content
+            if (!messageContent) {
               return null;
             }
 
@@ -1164,11 +1032,11 @@ const CanvasEditor: React.FC = () => {
             const regex = /<think>([\s\S]*?)(<\/think>|$)/g;
             let lastIndex = 0;
             let match;
-            while ((match = regex.exec(msg.content)) !== null) {
+            while ((match = regex.exec(messageContent)) !== null) {
               if (match.index > lastIndex) {
                 parts.push({
                   type: "text",
-                  content: msg.content.slice(lastIndex, match.index),
+                  content: messageContent.slice(lastIndex, match.index),
                 });
               }
               // Use the start index of the <think> block as a stable key
@@ -1180,15 +1048,17 @@ const CanvasEditor: React.FC = () => {
               lastIndex = regex.lastIndex;
               if (match[2] !== "</think>") break;
             }
-            if (lastIndex < msg.content.length) {
+            if (lastIndex < messageContent.length) {
               parts.push({
                 type: "text",
-                content: msg.content.slice(lastIndex),
+                content: messageContent.slice(lastIndex),
               });
             }
             // Determine if this is the last message and a bot message and AI is thinking (streaming)
             const isStreamingBotMsg =
-              aiThinking && idx === arr.length - 1 && msg.role === "assistant";
+              status === "streaming" &&
+              idx === arr.length - 1 &&
+              msg.role === "assistant";
             return (
               <div
                 key={msg.id}
@@ -1296,7 +1166,7 @@ const CanvasEditor: React.FC = () => {
             );
           })}
           {/* AI typing indicator with agent status - COMPACT */}
-          {aiThinking && (
+          {status === "streaming" && (
             <div className="flex justify-start">
               <div className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600 border border-gray-300">
                 <div className="flex items-center gap-1.5">
@@ -1319,7 +1189,7 @@ const CanvasEditor: React.FC = () => {
 
         {error && (
           <div className="px-4 py-2 bg-red-50 border-t border-red-100 text-red-600 text-xs">
-            <span>Error: {error.message || "Failed to send message"}</span>
+            <span>Error: {error?.message || "Failed to send message"}</span>
           </div>
         )}
 
@@ -1332,10 +1202,12 @@ const CanvasEditor: React.FC = () => {
             type="text"
             className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             placeholder="Ask the AI..."
-            value={localInput}
-            onChange={(e) => setLocalInput(e.target.value)}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
           />
-          <Button type="submit">Send</Button>
+          <Button type="submit" disabled={status === "streaming"}>
+            Send
+          </Button>
         </form>
       </aside>
     </div>

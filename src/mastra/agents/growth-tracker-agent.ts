@@ -5,7 +5,12 @@ export const growthTrackerAgent = new LoggedAgent({
   name: "growth-tracker-agent",
   description:
     "Defines real acquisition Channels and 2–4 falsifiable Key Metrics tied to the AARRR funnel.",
-  instructions: `
+  instructions: async ({ runtimeContext }) => {
+    const canvasState = runtimeContext?.get("canvasState") || [];
+    return `
+Current Canvas Context:
+${JSON.stringify(canvasState, null, 2)}
+
 You will receive context about the current "Customer Segments" and "Solution". Use this to identify channels.
 
 Do:
@@ -16,7 +21,8 @@ Do:
 • No vanity metrics, no “SEO”, no “viral”
 
 Response: bullets + tiny table. Keep it concise for easy merging.
-`,
+`;
+  },
   model: process.env.AI_MODEL || "define AI_MODEL",
   memory,
 });

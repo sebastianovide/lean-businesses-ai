@@ -2,6 +2,9 @@ import { mastra } from "@/mastra";
 import { NextResponse } from "next/server";
 import { convertMessages } from "@mastra/core/agent";
 import { PinoLogger } from "@mastra/loggers";
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import { toAISdkFormat } from "@mastra/ai-sdk";
+import { RuntimeContext } from "@mastra/core/runtime-context";
 
 const leanCanvasOrchestratorAgent = mastra.getAgent(
   "leanCanvasOrchestratorAgent"
@@ -17,38 +20,6 @@ interface CanvasSection {
   subsections?: { title: string; items: string[] }[];
 }
 
-// Helper to format canvas state for agent context
-function formatCanvasState(canvas: CanvasSection[]): string {
-  const sortedSections = [...canvas].sort((a, b) => a.order - b.order);
-
-  return sortedSections
-    .map((section) => {
-      const sectionTitle = section.title || section.id;
-
-      if (section.subsections) {
-        const subsectionContent = section.subsections
-          .map((sub) => {
-            const items = sub.items.filter(Boolean);
-            return `  **${sub.title}**:\n${
-              items.length > 0
-                ? items.map((item) => `    - ${item}`).join("\n")
-                : "    (empty)"
-            }`;
-          })
-          .join("\n\n");
-        return `### ${section.order}. ${sectionTitle}\n${subsectionContent}`;
-      } else {
-        const items = (section.items || []).filter(Boolean);
-        return `### ${section.order}. ${sectionTitle}\n${
-          items.length > 0
-            ? items.map((item) => `  - ${item}`).join("\n")
-            : "  (empty)"
-        }`;
-      }
-    })
-    .join("\n\n");
-}
-
 export async function POST(req: Request) {
   const { messages, canvasId, canvasState } = await req.json();
 
@@ -61,204 +32,113 @@ export async function POST(req: Request) {
     );
   }
 
+  // Extract the last user message from the messages array
+  const lastMessage =
+    messages && messages.length > 0 ? messages[messages.length - 1] : null;
+
+  if (!lastMessage) {
+    return NextResponse.json({ error: "No message provided" }, { status: 400 });
+  }
+
+  // Extract text from UIMessage format (parts array)
+  let messageText = "";
+  if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
+    // UIMessage format from useChat
+    const textPart = lastMessage.parts.find(
+      (part: any) => part.type === "text"
+    );
+    messageText = textPart?.text || "";
+  } else if (typeof lastMessage.content === "string") {
+    // Fallback for simple message format
+    messageText = lastMessage.content;
+  }
+
+  logger.info("Processing message", {
+    totalMessages: messages?.length || 0,
+    messageText,
+    allMessageRoles: messages?.map((m: any) => m.role) || [],
+  });
+
+  if (!messageText) {
+    return NextResponse.json(
+      { error: "No message text found" },
+      { status: 400 }
+    );
+  }
+
   try {
-    // CRITICAL FIX: Limit conversation history to prevent token explosion
-    // Only keep the last 10 messages to avoid exceeding token limits
-    const recentMessages = messages.slice(-10);
+    // Note: We only pass the NEW user message here.
+    // Mastra's memory system automatically retrieves the last 10 messages
+    // from the database based on the thread/resource configuration.
 
-    // CRITICAL FIX: Simplify canvas state - only send summary, not full content
-    const canvasSummary = canvasState
-      ? `Canvas sections filled: ${
-          canvasState.filter((s: any) => {
-            if (s.items && s.items.length > 0) return true;
-            if (s.subsections) {
-              return s.subsections.some(
-                (sub: any) => sub.items && sub.items.length > 0
-              );
-            }
-            return false;
-          }).length
-        }/9`
-      : "Canvas is empty";
+    // Create runtime context with canvas state
+    const runtimeContext = new RuntimeContext();
+    runtimeContext.set("canvasState", canvasState);
 
-    // Build context message - MUCH SIMPLER
-    const contextMessage = {
-      role: "system" as const,
-      content: `${canvasSummary}
+    logger.info("r untimeContext", {
+      runtimeContext,
+    });
 
-Keep responses concise (max 3-4 sentences). Focus on actionable next steps.`,
-    };
-
-    // Inject context as the first message
-    const messagesWithContext = [contextMessage, ...recentMessages];
-
-    const stream = await leanCanvasOrchestratorAgent.network(
-      messagesWithContext,
+    const networkStream = await leanCanvasOrchestratorAgent.network(
+      messageText,
       {
         memory: {
           thread: canvasId,
           resource: "lean-chat",
         },
-        maxSteps: 2, // REDUCED from 5 to prevent loops
+        runtimeContext,
+        maxSteps: 10, // Allow proper delegation: route → delegate → process → synthesize → respond
       }
     );
 
-    logger.info("Agent stream received");
+    // Transform stream into AI SDK format and create UI messages stream
+    const aiSdkStream = toAISdkFormat(networkStream, { from: "network" });
 
-    // Create a ReadableStream to send events to the client
-    const encoder = new TextEncoder();
-    let insideThinkBlock = false; // Track if we're inside a <think> block
-    let textBuffer = ""; // Buffer to accumulate text for think tag detection
-    let agentDepth = 0; // Track agent recursion depth
+    if (!aiSdkStream) {
+      throw new Error("Failed to convert network stream to AI SDK format");
+    }
 
-    const readableStream = new ReadableStream({
-      async start(controller) {
+    const uiMessageStream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        const reader = aiSdkStream.getReader();
         try {
-          const reader = stream.getReader();
-
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
-            // Send different event types to the client
-            if (value?.type === "agent-execution-event-start") {
-              // Agent started
-              agentDepth++;
-              logger.info("Agent start event", {
-                fullPayload: JSON.stringify(value?.payload),
-                agentName: value?.payload?.agentName,
-                name: value?.payload?.name,
-                agent: value?.payload?.agent,
-                depth: agentDepth,
-              });
-            } else if (value?.type === "agent-execution-event-text-delta") {
-              // Text chunk - filter out <think> tags (internal reasoning)
-
-              // Try to identify the agent from the payload
-              const payloadAgentName =
-                value?.payload?.agentName ||
-                value?.payload?.name ||
-                value?.payload?.agent?.name ||
-                value?.payload?.agent;
-
-              // Only process text from the main agent
-              // If we can identify the agent, it MUST be the orchestrator
-              // If we can't identify the agent, we rely on depth
-              const isOrchestrator = payloadAgentName
-                ? payloadAgentName === "lean-canvas-orchestrator-agent"
-                : agentDepth === 1;
-
-              if (isOrchestrator) {
-                let text =
-                  value?.payload?.payload?.text || value?.payload?.text;
-                if (text) {
-                  textBuffer += text;
-
-                  // Process the buffer to extract only non-think content
-                  let outputText = "";
-                  let remainingBuffer = textBuffer;
-
-                  while (remainingBuffer.length > 0) {
-                    if (insideThinkBlock) {
-                      // Look for closing tag
-                      const closeIndex = remainingBuffer.indexOf("</think>");
-                      if (closeIndex !== -1) {
-                        // Found closing tag, skip everything up to and including it
-                        remainingBuffer = remainingBuffer.slice(closeIndex + 8);
-                        insideThinkBlock = false;
-                      } else {
-                        // No closing tag yet, skip all remaining text
-                        remainingBuffer = "";
-                        break;
-                      }
-                    } else {
-                      // Look for opening tag
-                      const openIndex = remainingBuffer.indexOf("<think>");
-                      if (openIndex !== -1) {
-                        // Found opening tag, output everything before it
-                        outputText += remainingBuffer.slice(0, openIndex);
-                        remainingBuffer = remainingBuffer.slice(openIndex + 7);
-                        insideThinkBlock = true;
-                      } else {
-                        // No opening tag, check if we might have a partial tag at the end
-                        const possiblePartialTag = remainingBuffer.slice(-10);
-                        if (
-                          possiblePartialTag.includes("<") &&
-                          "<think>".startsWith(
-                            possiblePartialTag.slice(
-                              possiblePartialTag.lastIndexOf("<")
-                            )
-                          )
-                        ) {
-                          // Might be a partial opening tag, keep it in buffer
-                          const lastLessThan = remainingBuffer.lastIndexOf("<");
-                          outputText += remainingBuffer.slice(0, lastLessThan);
-                          remainingBuffer = remainingBuffer.slice(lastLessThan);
-                          break;
-                        } else {
-                          // No partial tag, output everything
-                          outputText += remainingBuffer;
-                          remainingBuffer = "";
-                        }
-                      }
-                    }
-                  }
-
-                  textBuffer = remainingBuffer;
-
-                  // Send the filtered text
-                  if (outputText) {
-                    controller.enqueue(
-                      encoder.encode(
-                        `data: ${JSON.stringify({
-                          type: "text-delta",
-                          text: outputText,
-                        })}\n\n`
-                      )
-                    );
-                  }
-                }
-              }
-            } else if (value?.type === "agent-execution-event-finish") {
-              // Agent finished
-              agentDepth--;
-              logger.info("Agent finish event", {
-                fullPayload: JSON.stringify(value?.payload),
-                depth: agentDepth,
-              });
-            } else if (value?.type === "agent-execution-event-tool-call") {
-              // Tool/Agent delegation
-              // We don't send this to the client anymore to reduce noise
-              logger.info("Tool call event", {
-                toolName: value?.payload?.toolName,
-              });
-            }
+            writer.write(value);
           }
-
-          // Send completion event
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`)
-          );
-          controller.close();
-        } catch (error) {
-          logger.error("Stream error", { error });
-          controller.error(error);
+        } finally {
+          reader.releaseLock();
         }
       },
     });
 
-    return new Response(readableStream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
+    // Create a Response that streams the UI message stream to the client
+    return createUIMessageStreamResponse({
+      stream: uiMessageStream,
     });
-  } catch (error) {
-    logger.error("Error in chat route", { error });
+  } catch (error: unknown) {
+    // Enhanced error logging
+    const err = error as Error;
+    console.error("❌ CHAT API ERROR - Full Details:");
+    console.error("Error type:", err?.constructor?.name);
+    console.error("Error message:", err?.message);
+    console.error("Error stack:", err?.stack);
+    console.error("Input - canvasId:", canvasId);
+    console.error("Input - lastMessage:", JSON.stringify(lastMessage, null, 2));
+    console.error("Input - canvasState:", JSON.stringify(canvasState, null, 2));
+
+    logger.error("Error in chat route", {
+      error,
+      errorMessage: err?.message,
+      errorStack: err?.stack,
+      canvasId,
+    });
+
     return NextResponse.json(
       {
         error: "Failed to process chat request. Check server logs for details.",
+        details: err?.message || "Unknown error",
       },
       { status: 500 }
     );

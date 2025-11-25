@@ -7,4 +7,10 @@ export const storage = new LibSQLStore({
 
 export const memory = new Memory({
   storage,
+  options: {
+    workingMemory: {
+      enabled: true,
+      scope: "thread", // Canvas state is per-thread (per canvasId)
+    },
+  },
 });

@@ -5,8 +5,14 @@ export const valueBuilderAgent = new LoggedAgent({
   name: "value-builder-agent",
   description:
     "Crafts high-impact UVP headlines and minimal, buildable Solutions once problems are validated.",
-  instructions: `
+  instructions: async ({ runtimeContext }) => {
+    const canvasState = runtimeContext?.get("canvasState") || [];
+    return `
 Activate only after top problems are ranked.
+
+Current Canvas Context:
+${JSON.stringify(canvasState, null, 2)}
+
 You will receive context about the current "Problem" and "Solution". Use this to craft the UVP.
 
 Do:
@@ -18,7 +24,8 @@ Do:
 
 Response: bullets only. Keep it concise for easy merging.
 End by asking the user to pick their favorite headline.
-`,
+`;
+  },
   model: process.env.AI_MODEL || "define AI_MODEL",
   memory,
 });
