@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import CanvasEditor from "./cabvas-editor";
+import CanvasEditor from "./canvas-editor";
 
 export default function CanvasPage() {
   return <CanvasEditor />;
