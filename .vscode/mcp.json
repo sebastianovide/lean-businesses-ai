@@ -2,11 +2,12 @@
   "servers": {
     "mastra": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@mastra/mcp-docs-server"
-      ],
+      "args": ["-y", "@mastra/mcp-docs-server"],
       "type": "stdio"
+    },
+    "ai-elements": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://registry.ai-sdk.dev/api/mcp"]
     }
   }
 }
