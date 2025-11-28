@@ -3,7 +3,7 @@ import { Mastra } from '@mastra/core/mastra';
 import { PinoLogger } from "@mastra/loggers";
 import { storage } from "./storage";
 import { leanCanvasOrchestratorAgent } from "./agents/lean-canvas-orchestrator-agent";
-import { customerInsightAgent } from "./agents/customer-insight-agent";
+import { firstCustomerAgent } from "./agents/first-customer-agent";
 import { valueBuilderAgent } from "./agents/value-builder-agent";
 import { monetizationAgent } from "./agents/monetization-agent";
 import { growthTrackerAgent } from "./agents/growth-tracker-agent";
@@ -13,7 +13,7 @@ export const mastra = new Mastra({
   workflows: {},
   agents: {
     leanCanvasOrchestratorAgent,
-    customerInsightAgent,
+    firstCustomerAgent,
     valueBuilderAgent,
     monetizationAgent,
     growthTrackerAgent,
