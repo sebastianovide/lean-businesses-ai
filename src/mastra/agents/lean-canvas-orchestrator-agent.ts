@@ -1,10 +1,7 @@
 import { LoggedAgent } from "../logged-agent";
 import { memory } from "../storage";
 import { firstCustomerAgent } from "./first-customer-agent";
-import { valueBuilderAgent } from "./value-builder-agent";
-import { monetizationAgent } from "./monetization-agent";
-import { growthTrackerAgent } from "./growth-tracker-agent";
-import { edgeAuditorAgent } from "./edge-auditor-agent";
+import { problemDiscoveryAgent } from "./problem-discovery-agent";
 
 export const leanCanvasOrchestratorAgent = new LoggedAgent({
   name: "lean-canvas-orchestrator-agent",
@@ -84,10 +81,7 @@ When specialists provide data, integrate it with canvas reality.
   model: process.env.AI_MODEL || "define AI_MODEL",
   agents: {
     firstCustomerAgent,
-    // valueBuilderAgent,
-    // monetizationAgent,
-    // growthTrackerAgent,
-    // edgeAuditorAgent,
+    problemDiscoveryAgent,
   },
   tools: {},
   memory,
