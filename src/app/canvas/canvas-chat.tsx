@@ -4,14 +4,9 @@ import React, { useState, useRef, useEffect } from "react";
 import { X, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { UIMessage, ChatStatus } from "ai";
+import { CanvasSection } from "./types";
 
-interface CanvasSection {
-  id: string;
-  order: number;
-  title?: string;
-  items?: string[];
-  subsections?: { title: string; items: string[] }[];
-}
+
 
 interface CanvasChatProps {
   isOpen: boolean;
