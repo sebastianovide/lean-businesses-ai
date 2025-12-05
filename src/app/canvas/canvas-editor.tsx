@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+
 import {
   Link as LinkIcon,
   Trash2,
@@ -106,13 +105,6 @@ const CanvasEditor = () => {
   const [canvas, setCanvas] = useState<CanvasSectionType[]>(initialCanvas);
   const [isChatOpen, setIsChatOpen] = useState(true);
 
-  // useChat hook with DefaultChatTransport
-  const { messages, sendMessage, status, error, setMessages } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-    }),
-  });
-
   // Initialize canvas ID from URL or generate new
   useEffect(() => {
     const urlCanvasId = searchParams.get("canvasId");
@@ -209,19 +201,6 @@ const CanvasEditor = () => {
     // Update index with new name
     updateCanvasIndex(canvasId, canvasName);
   }, [canvasName, canvasId]);
-
-  // Handler for chat message submission
-  const handleChatSubmit = (message: string) => {
-    sendMessage(
-      { text: message },
-      {
-        body: {
-          canvasId,
-          canvasState: canvas,
-        },
-      }
-    );
-  };
 
   const addItem = (sectionId: string, subsectionTitle?: string) => {
     setCanvas((prev) => {
@@ -358,9 +337,6 @@ const CanvasEditor = () => {
 
     // Reset canvas to initial state
     setCanvas(initialCanvas);
-
-    // Clear chat messages
-    setMessages([]);
 
     // Generate new ID and redirect
     const newId = uuidv4();
@@ -550,12 +526,9 @@ const CanvasEditor = () => {
       </div>
       {/* Chat sidebar */}
       <CanvasChat
+        key={canvasId}
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
-        messages={messages}
-        status={status}
-        error={error}
-        onSubmit={handleChatSubmit}
         canvasId={canvasId}
         canvasState={canvas}
       />

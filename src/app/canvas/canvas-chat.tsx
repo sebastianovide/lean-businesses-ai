@@ -1,20 +1,16 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import { X, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { UIMessage, ChatStatus } from "ai";
 import { CanvasSection } from "./types";
 
-
-
 interface CanvasChatProps {
   isOpen: boolean;
   onClose: () => void;
-  messages: UIMessage[];
-  status: ChatStatus;
-  error: Error | undefined;
-  onSubmit: (message: string) => void;
   canvasId: string;
   canvasState: CanvasSection[];
 }
@@ -22,13 +18,15 @@ interface CanvasChatProps {
 export function CanvasChat({
   isOpen,
   onClose,
-  messages,
-  status,
-  error,
-  onSubmit,
   canvasId,
   canvasState,
 }: CanvasChatProps) {
+  const { messages, sendMessage, status, error } = useChat({
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+    }),
+  });
+
   const [chatWidth, setChatWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -80,7 +78,17 @@ export function CanvasChat({
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
-    onSubmit(inputValue);
+
+    sendMessage(
+      { text: inputValue },
+      {
+        body: {
+          canvasId,
+          canvasState,
+        },
+      }
+    );
+
     setInputValue("");
   };
 
