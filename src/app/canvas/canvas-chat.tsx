@@ -5,7 +5,6 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { X, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { UIMessage, ChatStatus } from "ai";
 import { CanvasSection } from "./types";
 
 interface CanvasChatProps {

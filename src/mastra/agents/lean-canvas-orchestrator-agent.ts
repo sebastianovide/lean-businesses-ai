@@ -1,9 +1,9 @@
-import { LoggedAgent } from "../logged-agent";
+import { Agent } from "@mastra/core/agent";
 import { memory } from "../storage";
 import { firstCustomerAgent } from "./first-customer-agent";
 import { problemDiscoveryAgent } from "./problem-discovery-agent";
 
-export const leanCanvasOrchestratorAgent = new LoggedAgent({
+export const leanCanvasOrchestratorAgent = new Agent({
   name: "lean-canvas-orchestrator-agent",
   description:
     "Central routing agent that coordinates the entire Lean Canvas creation process and delegates to specialist agents when needed.",

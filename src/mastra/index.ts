@@ -24,6 +24,6 @@ export const mastra = new Mastra({
   },
   observability: {
     // Enables DefaultExporter and CloudExporter for AI tracing
-    default: { enabled: false },
+    default: { enabled: true },
   },
 });

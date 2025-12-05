@@ -1,6 +1,5 @@
 import { mastra } from "@/mastra";
 import { NextResponse } from "next/server";
-import { convertMessages } from "@mastra/core/agent";
 import { PinoLogger } from "@mastra/loggers";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { toAISdkFormat } from "@mastra/ai-sdk";
@@ -115,6 +114,7 @@ export async function POST(req: Request) {
     });
 
     const startTime = Date.now();
+    // it resolves to MastraAgentNetworkStream
     const networkStream = await leanCanvasOrchestratorAgent.network(
       messageText,
       {
@@ -143,6 +143,7 @@ export async function POST(req: Request) {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
+            logger.info("Chunk received:", value);
             writer.write(value);
           }
         } finally {

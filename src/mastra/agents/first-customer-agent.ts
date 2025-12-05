@@ -1,7 +1,7 @@
-import { LoggedAgent } from "../logged-agent";
+import { Agent } from "@mastra/core/agent";
 import { memory } from "../storage";
 
-export const firstCustomerAgent = new LoggedAgent({
+export const firstCustomerAgent = new Agent({
   name: "first-customer-agent",
   description:
     "Identifies the specific first customer who will pay within 30 days. Validates their top problem through sharp questioning.",

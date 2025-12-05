@@ -1,7 +1,7 @@
-import { LoggedAgent } from "../logged-agent";
+import { Agent } from "@mastra/core/agent";
 import { memory } from "../storage";
 
-export const problemDiscoveryAgent = new LoggedAgent({
+export const problemDiscoveryAgent = new Agent({
   name: "problem-discovery-agent",
   description:
     "Helps identify, refine, and prioritize real customer problems. Challenges assumptions and suggests sharper problem statements based on evidence.",
