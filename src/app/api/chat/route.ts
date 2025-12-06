@@ -1,7 +1,7 @@
 import { mastra } from "@/mastra";
 import { NextResponse } from "next/server";
 import { PinoLogger } from "@mastra/loggers";
-import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import { createUIMessageStreamResponse } from "ai";
 import { toAISdkFormat } from "@mastra/ai-sdk";
 import { RuntimeContext } from "@mastra/core/runtime-context";
 
@@ -79,6 +79,7 @@ export async function POST(req: Request) {
 
   try {
     const runtimeContext = new RuntimeContext();
+    logger.info("Canvas state", { canvasState });
     runtimeContext.set("canvasState", convertCanvasStateToString(canvasState));
 
     const networkStream = await leanCanvasOrchestratorAgent.network(

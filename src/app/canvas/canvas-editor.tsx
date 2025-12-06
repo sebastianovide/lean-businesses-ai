@@ -24,8 +24,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { CanvasChat } from "./canvas-chat";
-import { CanvasSection } from "./canvas-section";
+import CanvasChat from "./canvas-chat";
+import CanvasSection from "./canvas-section";
 import { CanvasSection as CanvasSectionType } from "./types";
 
 const initialCanvas: CanvasSectionType[] = [

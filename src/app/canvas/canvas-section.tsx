@@ -18,7 +18,7 @@ interface CanvasSectionProps {
   onAddItem: (sectionId: string, subsectionTitle?: string) => void;
 }
 
-export function CanvasSection({
+export default function CanvasSection({
   section,
   className = "",
   onUpdateItem,
@@ -84,9 +84,7 @@ export function CanvasSection({
           <CanvasItemList
             items={section.items || []}
             sectionId={section.id}
-            onUpdate={(index, value) =>
-              onUpdateItem(section.id, index, value)
-            }
+            onUpdate={(index, value) => onUpdateItem(section.id, index, value)}
             onRemove={(index) => onRemoveItem(section.id, index)}
             onAdd={() => onAddItem(section.id)}
           />
