@@ -90,9 +90,9 @@ export default function CanvasChat({
       <div className="flex items-center justify-between p-4 border-b bg-gray-50 rounded-t-lg cursor-move">
         <div className="flex items-center gap-2">
           <h2 className="font-semibold">Canvas Chat</h2>
-          {status === "streaming" && (
+          {status !== "ready" && (
             <span className="text-xs text-muted-foreground animate-pulse">
-              Responding...
+              {status === "streaming" ? "Responding..." : "Thinking..."}
             </span>
           )}
         </div>
@@ -131,36 +131,33 @@ export default function CanvasChat({
                     {/* Assistant message - show reasoning + response */}
                     {message.role === "assistant" && (
                       <>
-                        {/* Show agent thinking */}
-                        {dataNetworkPart &&
-                          dataNetworkPart.data.steps &&
-                          dataNetworkPart.data.steps.length > 0 && (
-                            <div className="mb-4">
-                              <Reasoning
-                                isStreaming={
-                                  isLastMessage &&
-                                  dataNetworkPart.data.status === "running" &&
-                                  status === "streaming"
-                                }
-                              >
-                                <ReasoningTrigger />
-                                <ReasoningContent>
-                                  {dataNetworkPart.data.steps
-                                    .map((step) => {
-                                      const parts = [`**${step.name}**`];
-                                      if (step.output) parts.push(step.output);
-                                      if (step.input?.selectionReason) {
-                                        parts.push(
-                                          `*Why: ${step.input.selectionReason}*`
-                                        );
-                                      }
-                                      return parts.join("\n\n");
-                                    })
-                                    .join("\n\n---\n\n")}
-                                </ReasoningContent>
-                              </Reasoning>
-                            </div>
-                          )}
+                        {/* Show agent thinking - always for last assistant message when not ready */}
+                        {isLastMessage && status !== "ready" && (
+                          <div className="mb-4">
+                            <Reasoning isStreaming={true} defaultOpen={true}>
+                              <ReasoningTrigger />
+                              <ReasoningContent>
+                                {dataNetworkPart &&
+                                dataNetworkPart.data.steps &&
+                                dataNetworkPart.data.steps.length > 0
+                                  ? dataNetworkPart.data.steps
+                                      .map((step) => {
+                                        const parts = [`**${step.name}**`];
+                                        if (step.output)
+                                          parts.push(step.output);
+                                        if (step.input?.selectionReason) {
+                                          parts.push(
+                                            `*Why: ${step.input.selectionReason}*`
+                                          );
+                                        }
+                                        return parts.join("\n\n");
+                                      })
+                                      .join("\n\n---\n\n")
+                                  : "AI is processing your request..."}
+                              </ReasoningContent>
+                            </Reasoning>
+                          </div>
+                        )}
 
                         {/* Show final response - clearly separated */}
                         {dataNetworkPart?.data.status === "finished" &&
