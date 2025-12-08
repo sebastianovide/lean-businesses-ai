@@ -2,12 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 
-import {
-  Link as LinkIcon,
-  Trash2,
-  Download,
-  MessageSquare,
-} from "lucide-react";
+import { Link as LinkIcon, Trash2, Download } from "lucide-react";
 
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
@@ -501,15 +496,6 @@ const CanvasEditor = () => {
               >
                 <Download size={16} />
                 Download
-              </Button>
-              <Button
-                variant={isChatOpen ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setIsChatOpen(!isChatOpen)}
-                className="flex items-center gap-2"
-              >
-                <MessageSquare size={16} />
-                {isChatOpen ? "Hide Chat" : "Show Chat"}
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
