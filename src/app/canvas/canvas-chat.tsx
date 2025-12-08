@@ -131,38 +131,40 @@ export default function CanvasChat({
                     {/* Assistant message - show reasoning + response */}
                     {message.role === "assistant" && (
                       <>
-                        {/* Show agent thinking - always for last assistant message when not ready */}
-                        {isLastMessage && status !== "ready" && (
-                          <div className="mb-4">
-                            <Reasoning isStreaming={true} defaultOpen={true}>
-                              <ReasoningTrigger />
-                              <ReasoningContent>
-                                {dataNetworkPart &&
-                                dataNetworkPart.data.steps &&
-                                dataNetworkPart.data.steps.length > 0
-                                  ? dataNetworkPart.data.steps
-                                      .map((step) => {
-                                        const parts = [`**${step.name}**`];
-                                        if (step.output)
-                                          parts.push(step.output);
-                                        if (step.input?.selectionReason) {
-                                          parts.push(
-                                            `*Why: ${step.input.selectionReason}*`
-                                          );
-                                        }
-                                        return parts.join("\n\n");
-                                      })
-                                      .join("\n\n---\n\n")
-                                  : "AI is processing your request..."}
-                              </ReasoningContent>
-                            </Reasoning>
-                          </div>
-                        )}
+                        {/* Show agent thinking - always visible for assistant messages */}
+                        <div className="mb-4">
+                          <Reasoning
+                            isStreaming={
+                              status === "streaming" && isLastMessage
+                            }
+                            defaultOpen={true}
+                          >
+                            <ReasoningTrigger />
+                            <ReasoningContent>
+                              {dataNetworkPart &&
+                              dataNetworkPart.data.steps &&
+                              dataNetworkPart.data.steps.length > 0
+                                ? dataNetworkPart.data.steps
+                                    .map((step) => {
+                                      const parts = [`**${step.name}**`];
+                                      if (step.output) parts.push(step.output);
+                                      if (step.input?.selectionReason) {
+                                        parts.push(
+                                          `*Why: ${step.input.selectionReason}*`
+                                        );
+                                      }
+                                      return parts.join("\n\n");
+                                    })
+                                    .join("\n\n---\n\n")
+                                : "AI is processing your request..."}
+                            </ReasoningContent>
+                          </Reasoning>
+                        </div>
 
-                        {/* Show final response - clearly separated */}
+                        {/* Show final response - with similar background to user but different color */}
                         {dataNetworkPart?.data.status === "finished" &&
                           dataNetworkPart.data.output && (
-                            <div className="mt-4 pt-4 border-t">
+                            <div className="mt-2 bg-muted rounded-lg px-4 py-3">
                               <MessageResponse>
                                 {dataNetworkPart.data.output}
                               </MessageResponse>
@@ -171,7 +173,9 @@ export default function CanvasChat({
 
                         {/* Fallback if no data-network but has text */}
                         {!dataNetworkPart && finalText && (
-                          <MessageResponse>{finalText}</MessageResponse>
+                          <div className="mt-2 bg-muted rounded-lg px-4 py-3">
+                            <MessageResponse>{finalText}</MessageResponse>
+                          </div>
                         )}
                       </>
                     )}
