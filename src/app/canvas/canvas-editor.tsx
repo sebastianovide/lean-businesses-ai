@@ -459,7 +459,7 @@ const CanvasEditor = () => {
         {/* Main content (canvas) */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Navigation */}
-          <div className="text-center py-4 bg-white border-b px-6">
+          <div className="text-center py-2 bg-white px-6">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Lean Canvas Editor
             </h1>
@@ -530,7 +530,7 @@ const CanvasEditor = () => {
           </div>
 
           {/* Lean Canvas Grid Layout */}
-          <div className="flex-1 bg-gray-50 p-6 overflow-hidden flex flex-col">
+          <div className="flex-1 bg-gray-50 p-3 overflow-hidden flex flex-col">
             <div className="bg-white p-4 rounded-lg shadow-lg flex-1 flex flex-col min-h-0">
               <div className="grid grid-cols-10 grid-rows-3 gap-0 h-full">
                 {/* Row 1 */}
