@@ -19,10 +19,27 @@ interface CanvasSection {
   subsections?: { title: string; items: string[] }[];
 }
 
-function convertCanvasStateToString(canvasState: CanvasSection[]) {
+interface MessagePart {
+  type: string;
+  text?: string;
+}
+
+function convertCanvasStateToString(canvasState: CanvasSection[] | any) {
   let canvasString = "=== Start of Lean Canvas State ===\n";
 
-  canvasState
+  // Handle both array and object formats
+  let sections: CanvasSection[];
+
+  if (Array.isArray(canvasState)) {
+    sections = canvasState;
+  } else if (typeof canvasState === "object" && canvasState !== null) {
+    // Convert object format to array format
+    sections = Object.values(canvasState);
+  } else {
+    sections = [];
+  }
+
+  sections
     .sort((a, b) => a.order - b.order)
     .forEach((section) => {
       canvasString += `## ${section.title}\n\n`;
@@ -59,14 +76,10 @@ export async function POST(req: Request) {
     );
   }
 
-  const lastMessage = messages?.[messages.length - 1];
-  if (!lastMessage) {
-    return NextResponse.json({ error: "No message provided" }, { status: 400 });
-  }
-
   // Extract text from message (supports both UIMessage and simple formats)
+  const lastMessage = messages[messages.length - 1];
   const messageText =
-    lastMessage.parts?.find((p: any) => p.type === "text")?.text ||
+    lastMessage.parts?.find((p: MessagePart) => p.type === "text")?.text ||
     lastMessage.content ||
     "";
 

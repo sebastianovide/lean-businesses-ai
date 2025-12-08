@@ -28,7 +28,7 @@ interface CanvasChatProps {
   isOpen: boolean;
   onClose: () => void;
   canvasId: string;
-  canvasState: any;
+  canvasState: Record<string, unknown>;
 }
 
 interface DataNetworkPart {
@@ -40,11 +40,11 @@ interface DataNetworkPart {
     steps?: Array<{
       name: string;
       status: "running" | "success" | "error";
-      input?: any;
+      input?: Record<string, unknown>;
       output?: string | null;
     }>;
     output?: string | null;
-    usage?: any;
+    usage?: Record<string, unknown>;
   };
 }
 
@@ -74,11 +74,20 @@ export default function CanvasChat({
     setInput("");
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-y-0 right-0 w-96 bg-background border-l shadow-lg flex flex-col">
-      <div className="flex items-center justify-between p-4 border-b">
+    <div
+      className={`fixed bottom-6 right-6 w-96 h-[600px] bg-background border shadow-lg rounded-lg flex flex-col z-50 ${
+        isOpen
+          ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
+          : "opacity-0 translate-y-4 scale-95 pointer-events-none"
+      }`}
+      style={{
+        animation: isOpen
+          ? "slideInFromBottom 0.5s cubic-bezier(0.16, 1, 0.3, 1)"
+          : "slideOutToBottom 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
+      }}
+    >
+      <div className="flex items-center justify-between p-4 border-b bg-gray-50 rounded-t-lg cursor-move">
         <div className="flex items-center gap-2">
           <h2 className="font-semibold">Canvas Chat</h2>
           {status === "streaming" && (
@@ -89,7 +98,7 @@ export default function CanvasChat({
         </div>
         <button
           onClick={onClose}
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-gray-200 transition-colors"
         >
           ✕
         </button>
@@ -105,12 +114,11 @@ export default function CanvasChat({
               ) as DataNetworkPart | undefined;
 
               const textParts = message.parts?.filter(
-                (p) => p.type === "text" && (p as any).text?.trim()
+                (p): p is { type: "text"; text: string } =>
+                  p.type === "text" && !!(p as { text?: string }).text?.trim()
               );
 
-              const finalText = textParts?.[textParts.length - 1]
-                ? (textParts[textParts.length - 1] as any).text
-                : undefined;
+              const finalText = textParts?.[textParts.length - 1]?.text;
 
               const isLastMessage = msgIdx === messages.length - 1;
 

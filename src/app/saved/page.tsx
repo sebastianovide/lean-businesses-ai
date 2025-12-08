@@ -24,19 +24,43 @@ const SavedCanvases: React.FC = () => {
 
   React.useEffect(() => {
     const loadCanvases = () => {
+      console.log("Loading canvases from localStorage...");
       try {
         const indexJson = localStorage.getItem("lean-canvases-index");
+        console.log("Found index JSON:", !!indexJson);
+
         if (indexJson) {
-          const canvases = JSON.parse(indexJson);
-          // Sort by updated at desc
-          canvases.sort(
-            (a: any, b: any) =>
-              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-          );
-          setSavedCanvases(canvases);
+          try {
+            const canvases = JSON.parse(indexJson);
+            console.log(
+              "Successfully parsed canvases:",
+              canvases.length,
+              "entries"
+            );
+
+            // Sort by updated at desc
+            canvases.sort(
+              (a: { updatedAt: string }, b: { updatedAt: string }) =>
+                new Date(b.updatedAt).getTime() -
+                new Date(a.updatedAt).getTime()
+            );
+            setSavedCanvases(canvases);
+          } catch (parseError) {
+            console.error("Failed to parse canvas index JSON:", parseError);
+            console.log("Raw index data:", indexJson);
+            setSavedCanvases([]);
+          }
+        } else {
+          console.log("No canvas index found, setting empty array");
+          setSavedCanvases([]);
         }
       } catch (err) {
         console.error("Failed to load saved canvases:", err);
+        console.error(
+          "Error details:",
+          err instanceof Error ? err.message : err
+        );
+        setSavedCanvases([]);
       }
     };
 
@@ -145,8 +169,8 @@ const SavedCanvases: React.FC = () => {
                             </AlertDialogTitle>
                             <AlertDialogDescription>
                               This action cannot be undone. This will
-                              permanently delete your canvas "{canvas.name}" and
-                              its chat history.
+                              permanently delete your canvas &quot;{canvas.name}
+                              &quot; and its chat history.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

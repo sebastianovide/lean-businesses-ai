@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 import {
   Link as LinkIcon,
@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { FloatingChatButton } from "@/components/floating-chat-button";
 import CanvasChat from "./canvas-chat";
 import CanvasSection from "./canvas-section";
 import { CanvasSection as CanvasSectionType } from "./types";
@@ -97,69 +98,132 @@ const initialCanvas: CanvasSectionType[] = [
 const CanvasEditor = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const initializationRef = useRef(false);
 
   // Canvas ID management - get from URL or generate new
-  const [canvasId, setCanvasId] = useState<string>("");
-  const [canvasName, setCanvasName] = useState<string>("Untitled Canvas");
+  const [canvasId, setCanvasId] = useState<string>(() => {
+    const urlCanvasId = searchParams.get("canvasId");
+    return urlCanvasId || uuidv4();
+  });
 
+  const [canvasName, setCanvasName] = useState<string>("Untitled Canvas");
   const [canvas, setCanvas] = useState<CanvasSectionType[]>(initialCanvas);
+  const hasLoadedFromStorageRef = useRef(false);
+
   const [isChatOpen, setIsChatOpen] = useState(true);
 
-  // Initialize canvas ID from URL or generate new
+  // Update URL if canvas ID was generated locally
   useEffect(() => {
-    const urlCanvasId = searchParams.get("canvasId");
-    if (urlCanvasId) {
-      setCanvasId(urlCanvasId);
-    } else {
-      const newId = uuidv4();
-      setCanvasId(newId);
-      router.replace(`/canvas?canvasId=${newId}`);
-    }
-  }, [searchParams, router]);
-
-  // Load canvas from local storage when canvasId changes
-  useEffect(() => {
-    if (!canvasId) return;
-
-    const storageKey = `lean-canvas-${canvasId}`;
-    const savedCanvas = localStorage.getItem(storageKey);
-    const savedName = localStorage.getItem(`lean-canvas-name-${canvasId}`);
-
-    if (savedCanvas) {
-      try {
-        const parsed = JSON.parse(savedCanvas);
-        setCanvas(parsed);
-      } catch (err) {
-        console.error("Failed to load canvas from storage:", err);
+    if (!initializationRef.current) {
+      const urlCanvasId = searchParams.get("canvasId");
+      if (!urlCanvasId) {
+        router.replace(`/canvas?canvasId=${canvasId}`);
+        initializationRef.current = true;
       }
     }
+  }, [canvasId, router, searchParams]);
 
-    if (savedName) {
-      setCanvasName(savedName);
+  // Load canvas from localStorage on client side
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const urlCanvasId = searchParams.get("canvasId");
+    if (!urlCanvasId) {
+      console.log("No canvasId in URL, this is a new canvas");
+      // Mark as loaded after a short delay for new canvases
+      const timeoutId = setTimeout(() => {
+        hasLoadedFromStorageRef.current = true;
+      }, 100);
+      return () => clearTimeout(timeoutId);
     }
-  }, [canvasId]);
+
+    console.log("Loading from localStorage with canvasId:", urlCanvasId);
+
+    const loadData = () => {
+      try {
+        // Load canvas
+        const storageKey = `lean-canvas-${urlCanvasId}`;
+        console.log("Looking for storage key:", storageKey);
+        const savedCanvas = localStorage.getItem(storageKey);
+        console.log("Found canvas data:", !!savedCanvas);
+
+        let foundCanvas = false;
+        if (savedCanvas) {
+          try {
+            const parsedCanvas = JSON.parse(savedCanvas);
+            console.log("Parsed canvas successfully:", parsedCanvas);
+            setCanvas(parsedCanvas);
+            foundCanvas = true;
+            console.log("Canvas state updated from localStorage");
+          } catch (parseError) {
+            console.error("Failed to parse canvas JSON:", parseError);
+            console.log("Raw canvas data:", savedCanvas);
+          }
+        } else {
+          console.log("No saved canvas found, using initial canvas");
+        }
+
+        // Load canvas name
+        const nameKey = `lean-canvas-name-${urlCanvasId}`;
+        console.log("Looking for name key:", nameKey);
+        const savedName = localStorage.getItem(nameKey);
+        console.log("Found name data:", !!savedName);
+
+        if (savedName) {
+          console.log("Setting canvas name:", savedName);
+          setCanvasName(savedName);
+        } else {
+          console.log("No saved name found, using default name");
+        }
+
+        // Mark as loaded after we've attempted to load
+        hasLoadedFromStorageRef.current = true;
+        console.log("Loading complete, found canvas:", foundCanvas);
+      } catch (err) {
+        console.error("Failed to load from localStorage:", err);
+        // Reset to initial state if loading fails
+        setCanvas(initialCanvas);
+        setCanvasName("Untitled Canvas");
+        hasLoadedFromStorageRef.current = true;
+      }
+    };
+
+    // Use a small delay to ensure DOM is ready
+    const timeoutId = setTimeout(loadData, 50);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchParams]);
 
   // Helper to update the canvas index
-  const updateCanvasIndex = (
-    id: string,
-    name: string,
-    isNew: boolean = false
-  ) => {
+  interface CanvasIndexEntry {
+    id: string;
+    name: string;
+    createdAt: string;
+    updatedAt: string;
+  }
+
+  const updateCanvasIndex = useCallback((id: string, name: string) => {
+    if (typeof window === "undefined") {
+      console.log("Skipping canvas index update: window undefined");
+      return;
+    }
+
+    console.log("Updating canvas index for:", id, "with name:", name);
+
     try {
       const indexKey = "lean-canvases-index";
       const indexJson = localStorage.getItem(indexKey);
-      let index: {
-        id: string;
-        name: string;
-        createdAt: string;
-        updatedAt: string;
-      }[] = indexJson ? JSON.parse(indexJson) : [];
+      console.log("Current index JSON:", indexJson);
+
+      const index: CanvasIndexEntry[] = indexJson ? JSON.parse(indexJson) : [];
+      console.log("Parsed index entries:", index.length);
 
       const now = new Date().toISOString();
       const existingEntryIndex = index.findIndex((item) => item.id === id);
 
       if (existingEntryIndex >= 0) {
         // Update existing entry
+        console.log("Updating existing index entry");
         index[existingEntryIndex] = {
           ...index[existingEntryIndex],
           name,
@@ -167,6 +231,7 @@ const CanvasEditor = () => {
         };
       } else {
         // Add new entry
+        console.log("Adding new index entry");
         index.push({
           id,
           name,
@@ -175,32 +240,77 @@ const CanvasEditor = () => {
         });
       }
 
-      localStorage.setItem(indexKey, JSON.stringify(index));
+      const updatedIndexJson = JSON.stringify(index);
+      localStorage.setItem(indexKey, updatedIndexJson);
+      console.log("Canvas index updated successfully, entries:", index.length);
     } catch (err) {
       console.error("Failed to update canvas index:", err);
+      console.error("Error details:", err instanceof Error ? err.message : err);
     }
-  };
+  }, []);
 
-  // Auto-save canvas to local storage whenever it changes
+  // Auto-save canvas to local storage whenever it changes (but only after initial load)
   useEffect(() => {
-    if (!canvasId) return;
+    if (
+      typeof window === "undefined" ||
+      !canvasId ||
+      !hasLoadedFromStorageRef.current
+    ) {
+      console.log(
+        "Skipping canvas save: window undefined, no canvasId, or not loaded yet"
+      );
+      return;
+    }
 
     const storageKey = `lean-canvas-${canvasId}`;
-    localStorage.setItem(storageKey, JSON.stringify(canvas));
+    console.log("Auto-saving canvas with key:", storageKey);
 
-    // Update index with new timestamp
-    updateCanvasIndex(canvasId, canvasName);
+    try {
+      const canvasData = JSON.stringify(canvas);
+      localStorage.setItem(storageKey, canvasData);
+      console.log("Canvas saved successfully, data length:", canvasData.length);
+    } catch (saveError) {
+      console.error("Failed to save canvas to localStorage:", saveError);
+      console.log("Canvas data that failed to save:", canvas);
+    }
   }, [canvas, canvasId]);
 
-  // Auto-save canvas name to local storage whenever it changes
+  // Auto-save canvas name to local storage whenever it changes (but only after initial load)
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !canvasId ||
+      !hasLoadedFromStorageRef.current
+    ) {
+      console.log(
+        "Skipping canvas name save: window undefined, no canvasId, or not loaded yet"
+      );
+      return;
+    }
+
+    const nameKey = `lean-canvas-name-${canvasId}`;
+    console.log(
+      "Auto-saving canvas name with key:",
+      nameKey,
+      "name:",
+      canvasName
+    );
+
+    try {
+      localStorage.setItem(nameKey, canvasName);
+      console.log("Canvas name saved successfully");
+    } catch (saveError) {
+      console.error("Failed to save canvas name to localStorage:", saveError);
+      console.log("Canvas name that failed to save:", canvasName);
+    }
+  }, [canvasName, canvasId]);
+
+  // Update canvas index when canvas or name changes
   useEffect(() => {
     if (!canvasId) return;
 
-    localStorage.setItem(`lean-canvas-name-${canvasId}`, canvasName);
-
-    // Update index with new name
     updateCanvasIndex(canvasId, canvasName);
-  }, [canvasName, canvasId]);
+  }, [canvasId, canvasName, updateCanvasIndex]);
 
   const addItem = (sectionId: string, subsectionTitle?: string) => {
     setCanvas((prev) => {
@@ -317,6 +427,8 @@ const CanvasEditor = () => {
   };
 
   const handleClearCanvas = () => {
+    if (typeof window === "undefined") return;
+
     // Delete from local storage
     const storageKey = `lean-canvas-${canvasId}`;
     localStorage.removeItem(storageKey);
@@ -327,8 +439,10 @@ const CanvasEditor = () => {
       const indexKey = "lean-canvases-index";
       const indexJson = localStorage.getItem(indexKey);
       if (indexJson) {
-        const index = JSON.parse(indexJson);
-        const newIndex = index.filter((item: any) => item.id !== canvasId);
+        const index: CanvasIndexEntry[] = JSON.parse(indexJson);
+        const newIndex = index.filter(
+          (item: CanvasIndexEntry) => item.id !== canvasId
+        );
         localStorage.setItem(indexKey, JSON.stringify(newIndex));
       }
     } catch (err) {
@@ -524,13 +638,24 @@ const CanvasEditor = () => {
           </div>
         </div>
       </div>
-      {/* Chat sidebar */}
+
+      {/* Floating Chat Button - shown when chat is closed */}
+      {!isChatOpen && (
+        <FloatingChatButton
+          onClick={() => setIsChatOpen(true)}
+          hasUnread={false}
+        />
+      )}
+
+      {/* Floating Chat Panel - shown when chat is open */}
       <CanvasChat
         key={canvasId}
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         canvasId={canvasId}
-        canvasState={canvas}
+        canvasState={Object.fromEntries(
+          canvas.map((section) => [section.id, section])
+        )}
       />
     </div>
   );
