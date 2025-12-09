@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { CanvasStorage } from "../canvas/types";
 
 const SavedCanvases: React.FC = () => {
   const router = useRouter();
@@ -26,12 +27,21 @@ const SavedCanvases: React.FC = () => {
     const loadCanvases = () => {
       console.log("Loading canvases from localStorage...");
       try {
-        const indexJson = localStorage.getItem("lean-canvases-index");
-        console.log("Found index JSON:", !!indexJson);
+        const storageData = localStorage.getItem("lean-canvases-storage");
+        console.log("Found storage data:", !!storageData);
 
-        if (indexJson) {
+        if (storageData) {
           try {
-            const canvases = JSON.parse(indexJson);
+            const canvasStorage: CanvasStorage = JSON.parse(storageData);
+            const canvases = Object.entries(canvasStorage).map(
+              ([id, canvas]) => ({
+                id,
+                name: canvas.name,
+                createdAt: canvas.createdAt,
+                updatedAt: canvas.updatedAt,
+              })
+            );
+
             console.log(
               "Successfully parsed canvases:",
               canvases.length,
@@ -46,12 +56,12 @@ const SavedCanvases: React.FC = () => {
             );
             setSavedCanvases(canvases);
           } catch (parseError) {
-            console.error("Failed to parse canvas index JSON:", parseError);
-            console.log("Raw index data:", indexJson);
+            console.error("Failed to parse canvas storage JSON:", parseError);
+            console.log("Raw storage data:", storageData);
             setSavedCanvases([]);
           }
         } else {
-          console.log("No canvas index found, setting empty array");
+          console.log("No canvas storage found, setting empty array");
           setSavedCanvases([]);
         }
       } catch (err) {
@@ -75,14 +85,20 @@ const SavedCanvases: React.FC = () => {
     // if (!confirm("Are you sure you want to delete this canvas?")) return;
 
     try {
-      // Remove from index
-      const newCanvases = savedCanvases.filter((c) => c.id !== id);
-      localStorage.setItem("lean-canvases-index", JSON.stringify(newCanvases));
-      setSavedCanvases(newCanvases);
+      // Remove from storage
+      const storageData = localStorage.getItem("lean-canvases-storage");
+      if (storageData) {
+        const canvasStorage: CanvasStorage = JSON.parse(storageData);
+        delete canvasStorage[id];
+        localStorage.setItem(
+          "lean-canvases-storage",
+          JSON.stringify(canvasStorage)
+        );
+      }
 
-      // Remove data
-      localStorage.removeItem(`lean-canvas-${id}`);
-      localStorage.removeItem(`lean-canvas-name-${id}`);
+      // Update local state
+      const newCanvases = savedCanvases.filter((c) => c.id !== id);
+      setSavedCanvases(newCanvases);
     } catch (err) {
       console.error("Failed to delete canvas:", err);
     }

@@ -22,7 +22,7 @@ import {
 import { FloatingChatButton } from "@/components/floating-chat-button";
 import CanvasChat from "./canvas-chat";
 import CanvasSection from "./canvas-section";
-import { CanvasState } from "./types";
+import { CanvasState, CanvasStorage } from "./types";
 
 const initialCanvas: CanvasState = {
   problem: {
@@ -138,25 +138,20 @@ const CanvasEditor = () => {
 
     const loadData = () => {
       try {
-        // Load canvas
-        const storageKey = `lean-canvas-${urlCanvasId}`;
-        const savedCanvas = localStorage.getItem(storageKey);
+        const storageData = localStorage.getItem("lean-canvases-storage");
 
-        if (savedCanvas) {
+        if (storageData) {
           try {
-            const parsedCanvas: CanvasState = JSON.parse(savedCanvas);
-            setCanvas(parsedCanvas);
+            const canvasStorage: CanvasStorage = JSON.parse(storageData);
+            const storedCanvas = canvasStorage[urlCanvasId];
+
+            if (storedCanvas) {
+              setCanvas(storedCanvas.state);
+              setCanvasName(storedCanvas.name);
+            }
           } catch (parseError) {
-            console.error("Failed to parse canvas JSON:", parseError);
+            console.error("Failed to parse canvas storage JSON:", parseError);
           }
-        }
-
-        // Load canvas name
-        const nameKey = `lean-canvas-name-${urlCanvasId}`;
-        const savedName = localStorage.getItem(nameKey);
-
-        if (savedName) {
-          setCanvasName(savedName);
         }
 
         // Mark as loaded after we've attempted to load
@@ -176,97 +171,56 @@ const CanvasEditor = () => {
     return () => clearTimeout(timeoutId);
   }, [searchParams]);
 
-  // Helper to update the canvas index
-  interface CanvasIndexEntry {
-    id: string;
-    name: string;
-    createdAt: string;
-    updatedAt: string;
-  }
-
-  const updateCanvasIndex = useCallback((id: string, name: string) => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    try {
-      const indexKey = "lean-canvases-index";
-      const indexJson = localStorage.getItem(indexKey);
-
-      const index: CanvasIndexEntry[] = indexJson ? JSON.parse(indexJson) : [];
-
-      const now = new Date().toISOString();
-      const existingEntryIndex = index.findIndex((item) => item.id === id);
-
-      if (existingEntryIndex >= 0) {
-        // Update existing entry
-        index[existingEntryIndex] = {
-          ...index[existingEntryIndex],
-          name,
-          updatedAt: now,
-        };
-      } else {
-        // Add new entry
-        index.push({
-          id,
-          name,
-          createdAt: now,
-          updatedAt: now,
-        });
+  // Helper to save canvas to the simplified storage structure
+  const saveCanvasToStorage = useCallback(
+    (id: string, state: CanvasState, name: string) => {
+      if (typeof window === "undefined") {
+        return;
       }
 
-      const updatedIndexJson = JSON.stringify(index);
-      localStorage.setItem(indexKey, updatedIndexJson);
-    } catch (err) {
-      console.error("Failed to update canvas index:", err);
-    }
-  }, []);
+      try {
+        const storageData = localStorage.getItem("lean-canvases-storage");
+        const canvasStorage: CanvasStorage = storageData
+          ? JSON.parse(storageData)
+          : {};
 
-  // Auto-save canvas to local storage whenever it changes (but only after initial load)
+        const now = new Date().toISOString();
+
+        if (canvasStorage[id]) {
+          // Update existing canvas
+          canvasStorage[id] = {
+            ...canvasStorage[id],
+            state,
+            name,
+            updatedAt: now,
+          };
+        } else {
+          // Add new canvas
+          canvasStorage[id] = {
+            state,
+            name,
+            createdAt: now,
+            updatedAt: now,
+          };
+        }
+
+        localStorage.setItem(
+          "lean-canvases-storage",
+          JSON.stringify(canvasStorage)
+        );
+      } catch (err) {
+        console.error("Failed to save canvas to storage:", err);
+      }
+    },
+    []
+  );
+
+  // Save canvas to storage when canvas or name changes
   useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !canvasId ||
-      !hasLoadedFromStorageRef.current
-    ) {
-      return;
-    }
+    if (!canvasId || !hasLoadedFromStorageRef.current) return;
 
-    const storageKey = `lean-canvas-${canvasId}`;
-
-    try {
-      const canvasData = JSON.stringify(canvas);
-      localStorage.setItem(storageKey, canvasData);
-    } catch (saveError) {
-      console.error("Failed to save canvas to localStorage:", saveError);
-    }
-  }, [canvas, canvasId]);
-
-  // Auto-save canvas name to local storage whenever it changes (but only after initial load)
-  useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !canvasId ||
-      !hasLoadedFromStorageRef.current
-    ) {
-      return;
-    }
-
-    const nameKey = `lean-canvas-name-${canvasId}`;
-
-    try {
-      localStorage.setItem(nameKey, canvasName);
-    } catch (saveError) {
-      console.error("Failed to save canvas name to localStorage:", saveError);
-    }
-  }, [canvasName, canvasId]);
-
-  // Update canvas index when canvas or name changes
-  useEffect(() => {
-    if (!canvasId) return;
-
-    updateCanvasIndex(canvasId, canvasName);
-  }, [canvasId, canvasName, updateCanvasIndex]);
+    saveCanvasToStorage(canvasId, canvas, canvasName);
+  }, [canvasId, canvas, canvasName, saveCanvasToStorage]);
 
   const addItem = (sectionId: string, subsectionTitle?: string) => {
     setCanvas((prev) => {
@@ -406,24 +360,19 @@ const CanvasEditor = () => {
   const handleClearCanvas = () => {
     if (typeof window === "undefined") return;
 
-    // Delete from local storage
-    const storageKey = `lean-canvas-${canvasId}`;
-    localStorage.removeItem(storageKey);
-    localStorage.removeItem(`lean-canvas-name-${canvasId}`);
-
-    // Remove from index
+    // Remove from storage
     try {
-      const indexKey = "lean-canvases-index";
-      const indexJson = localStorage.getItem(indexKey);
-      if (indexJson) {
-        const index: CanvasIndexEntry[] = JSON.parse(indexJson);
-        const newIndex = index.filter(
-          (item: CanvasIndexEntry) => item.id !== canvasId
+      const storageData = localStorage.getItem("lean-canvases-storage");
+      if (storageData) {
+        const canvasStorage: CanvasStorage = JSON.parse(storageData);
+        delete canvasStorage[canvasId];
+        localStorage.setItem(
+          "lean-canvases-storage",
+          JSON.stringify(canvasStorage)
         );
-        localStorage.setItem(indexKey, JSON.stringify(newIndex));
       }
     } catch (err) {
-      console.error("Failed to remove from canvas index:", err);
+      console.error("Failed to remove canvas from storage:", err);
     }
 
     // Reset canvas to initial state
