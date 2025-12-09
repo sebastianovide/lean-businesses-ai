@@ -105,7 +105,9 @@ const CanvasEditor = () => {
   const [canvas, setCanvas] = useState<CanvasSectionType[]>(initialCanvas);
   const hasLoadedFromStorageRef = useRef(false);
 
-  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false); // Start with chat closed for testing
+  const [hasUnread, setHasUnread] = useState(false);
+  const [lastMessageCount, setLastMessageCount] = useState(0);
 
   // Update URL if canvas ID was generated locally
   useEffect(() => {
@@ -124,7 +126,6 @@ const CanvasEditor = () => {
 
     const urlCanvasId = searchParams.get("canvasId");
     if (!urlCanvasId) {
-      console.log("No canvasId in URL, this is a new canvas");
       // Mark as loaded after a short delay for new canvases
       const timeoutId = setTimeout(() => {
         hasLoadedFromStorageRef.current = true;
@@ -132,48 +133,33 @@ const CanvasEditor = () => {
       return () => clearTimeout(timeoutId);
     }
 
-    console.log("Loading from localStorage with canvasId:", urlCanvasId);
-
     const loadData = () => {
       try {
         // Load canvas
         const storageKey = `lean-canvas-${urlCanvasId}`;
-        console.log("Looking for storage key:", storageKey);
         const savedCanvas = localStorage.getItem(storageKey);
-        console.log("Found canvas data:", !!savedCanvas);
 
         let foundCanvas = false;
         if (savedCanvas) {
           try {
             const parsedCanvas = JSON.parse(savedCanvas);
-            console.log("Parsed canvas successfully:", parsedCanvas);
             setCanvas(parsedCanvas);
             foundCanvas = true;
-            console.log("Canvas state updated from localStorage");
           } catch (parseError) {
             console.error("Failed to parse canvas JSON:", parseError);
-            console.log("Raw canvas data:", savedCanvas);
           }
-        } else {
-          console.log("No saved canvas found, using initial canvas");
         }
 
         // Load canvas name
         const nameKey = `lean-canvas-name-${urlCanvasId}`;
-        console.log("Looking for name key:", nameKey);
         const savedName = localStorage.getItem(nameKey);
-        console.log("Found name data:", !!savedName);
 
         if (savedName) {
-          console.log("Setting canvas name:", savedName);
           setCanvasName(savedName);
-        } else {
-          console.log("No saved name found, using default name");
         }
 
         // Mark as loaded after we've attempted to load
         hasLoadedFromStorageRef.current = true;
-        console.log("Loading complete, found canvas:", foundCanvas);
       } catch (err) {
         console.error("Failed to load from localStorage:", err);
         // Reset to initial state if loading fails
@@ -199,26 +185,20 @@ const CanvasEditor = () => {
 
   const updateCanvasIndex = useCallback((id: string, name: string) => {
     if (typeof window === "undefined") {
-      console.log("Skipping canvas index update: window undefined");
       return;
     }
-
-    console.log("Updating canvas index for:", id, "with name:", name);
 
     try {
       const indexKey = "lean-canvases-index";
       const indexJson = localStorage.getItem(indexKey);
-      console.log("Current index JSON:", indexJson);
 
       const index: CanvasIndexEntry[] = indexJson ? JSON.parse(indexJson) : [];
-      console.log("Parsed index entries:", index.length);
 
       const now = new Date().toISOString();
       const existingEntryIndex = index.findIndex((item) => item.id === id);
 
       if (existingEntryIndex >= 0) {
         // Update existing entry
-        console.log("Updating existing index entry");
         index[existingEntryIndex] = {
           ...index[existingEntryIndex],
           name,
@@ -226,7 +206,6 @@ const CanvasEditor = () => {
         };
       } else {
         // Add new entry
-        console.log("Adding new index entry");
         index.push({
           id,
           name,
@@ -237,10 +216,8 @@ const CanvasEditor = () => {
 
       const updatedIndexJson = JSON.stringify(index);
       localStorage.setItem(indexKey, updatedIndexJson);
-      console.log("Canvas index updated successfully, entries:", index.length);
     } catch (err) {
       console.error("Failed to update canvas index:", err);
-      console.error("Error details:", err instanceof Error ? err.message : err);
     }
   }, []);
 
@@ -251,22 +228,16 @@ const CanvasEditor = () => {
       !canvasId ||
       !hasLoadedFromStorageRef.current
     ) {
-      console.log(
-        "Skipping canvas save: window undefined, no canvasId, or not loaded yet"
-      );
       return;
     }
 
     const storageKey = `lean-canvas-${canvasId}`;
-    console.log("Auto-saving canvas with key:", storageKey);
 
     try {
       const canvasData = JSON.stringify(canvas);
       localStorage.setItem(storageKey, canvasData);
-      console.log("Canvas saved successfully, data length:", canvasData.length);
     } catch (saveError) {
       console.error("Failed to save canvas to localStorage:", saveError);
-      console.log("Canvas data that failed to save:", canvas);
     }
   }, [canvas, canvasId]);
 
@@ -277,26 +248,15 @@ const CanvasEditor = () => {
       !canvasId ||
       !hasLoadedFromStorageRef.current
     ) {
-      console.log(
-        "Skipping canvas name save: window undefined, no canvasId, or not loaded yet"
-      );
       return;
     }
 
     const nameKey = `lean-canvas-name-${canvasId}`;
-    console.log(
-      "Auto-saving canvas name with key:",
-      nameKey,
-      "name:",
-      canvasName
-    );
 
     try {
       localStorage.setItem(nameKey, canvasName);
-      console.log("Canvas name saved successfully");
     } catch (saveError) {
       console.error("Failed to save canvas name to localStorage:", saveError);
-      console.log("Canvas name that failed to save:", canvasName);
     }
   }, [canvasName, canvasId]);
 
@@ -451,6 +411,41 @@ const CanvasEditor = () => {
     const newId = uuidv4();
     setCanvasId(newId);
     router.replace(`/canvas?canvasId=${newId}`);
+  };
+
+  // Handle new messages from chat
+  const handleNewMessage = (messageCount: number) => {
+    console.log("New message detected:", {
+      messageCount,
+      isChatOpen,
+      lastMessageCount,
+    });
+
+    // Only process new messages when chat is closed
+    if (!isChatOpen) {
+      if (messageCount > lastMessageCount) {
+        console.log("Setting unread to true - new messages while chat closed");
+        setHasUnread(true);
+        setLastMessageCount(messageCount); // Update baseline after setting unread
+      }
+    } else {
+      console.log("Chat is open, updating message count");
+      setLastMessageCount(messageCount);
+    }
+  };
+
+  // Handle closing chat - set baseline message count
+  const handleCloseChat = useCallback(() => {
+    console.log("Chat closing, current message count:", lastMessageCount);
+    setIsChatOpen(false);
+    setHasUnread(false); // Clear unread when chat is opened
+  }, [lastMessageCount]);
+
+  // Handle opening chat - clear unread state
+  const handleOpenChat = () => {
+    console.log("Chat opening, clearing unread state");
+    setIsChatOpen(true);
+    setHasUnread(false);
   };
 
   return (
@@ -627,17 +622,15 @@ const CanvasEditor = () => {
 
       {/* Floating Chat Button - shown when chat is closed */}
       {!isChatOpen && (
-        <FloatingChatButton
-          onClick={() => setIsChatOpen(true)}
-          hasUnread={false}
-        />
+        <FloatingChatButton onClick={handleOpenChat} hasUnread={hasUnread} />
       )}
 
       {/* Floating Chat Panel - shown when chat is open */}
       <CanvasChat
         key={canvasId}
         isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
+        onClose={handleCloseChat}
+        onMessageUpdate={handleNewMessage}
         canvasId={canvasId}
         canvasState={Object.fromEntries(
           canvas.map((section) => [section.id, section])

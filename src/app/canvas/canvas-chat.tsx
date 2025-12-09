@@ -1,6 +1,6 @@
 "use client";
 import { useChat } from "@ai-sdk/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Conversation,
   ConversationContent,
@@ -27,6 +27,7 @@ import { DefaultChatTransport } from "ai";
 interface CanvasChatProps {
   isOpen: boolean;
   onClose: () => void;
+  onMessageUpdate?: (messageCount: number) => void;
   canvasId: string;
   canvasState: Record<string, unknown>;
 }
@@ -51,6 +52,7 @@ interface DataNetworkPart {
 export default function CanvasChat({
   isOpen,
   onClose,
+  onMessageUpdate,
   canvasId,
   canvasState,
 }: CanvasChatProps) {
@@ -65,6 +67,20 @@ export default function CanvasChat({
       },
     }),
   });
+
+  // Only track when streaming ends (AI response completed) to avoid too frequent updates
+  useEffect(() => {
+    console.log("Chat status change:", {
+      status,
+      isOpen,
+      messagesLength: messages.length,
+    });
+    if (status === "ready" && onMessageUpdate) {
+      // AI just finished streaming, notify parent
+      console.log("AI streaming ended, notifying parent");
+      onMessageUpdate(messages.length);
+    }
+  }, [status, messages.length, onMessageUpdate, isOpen]);
 
   console.info("messages, status", { messages, status });
 
