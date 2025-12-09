@@ -6,7 +6,7 @@ export const firstCustomerAgent = new Agent({
   description:
     "Identifies the specific first customer who will pay within 30 days. Validates their top problem through sharp questioning.",
   instructions: async ({ runtimeContext }) => {
-    const canvasState = runtimeContext?.get("canvasState") || [];
+    const canvasState = runtimeContext?.get("canvasState") || "";
     return `
 # Role: First Customer Validator
 

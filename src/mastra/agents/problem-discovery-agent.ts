@@ -6,7 +6,7 @@ export const problemDiscoveryAgent = new Agent({
   description:
     "Helps identify, refine, and prioritize real customer problems. Challenges assumptions and suggests sharper problem statements based on evidence.",
   instructions: async ({ runtimeContext }) => {
-    const canvasState = runtimeContext?.get("canvasState") || [];
+    const canvasState = runtimeContext?.get("canvasState") || "";
     return `
 # Role: Problem Discovery Specialist
 

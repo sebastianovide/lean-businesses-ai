@@ -23,13 +23,14 @@ import {
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning";
 import { DefaultChatTransport } from "ai";
+import { CanvasState } from "./types";
 
 interface CanvasChatProps {
   isOpen: boolean;
   onClose: () => void;
   onMessageUpdate?: (messageCount: number) => void;
   canvasId: string;
-  canvasState: Record<string, unknown>;
+  canvasState: CanvasState;
 }
 
 interface DataNetworkPart {
@@ -57,6 +58,12 @@ export default function CanvasChat({
   canvasState,
 }: CanvasChatProps) {
   const [input, setInput] = useState("");
+
+  // Debug: Log canvas state to verify it's being passed correctly
+  useEffect(() => {
+    console.log("CanvasChat - Canvas State:", canvasState);
+    console.log("CanvasChat - Canvas State keys:", Object.keys(canvasState));
+  }, [canvasState]);
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({

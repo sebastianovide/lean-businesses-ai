@@ -3,6 +3,7 @@ import { CanvasItemList } from "./canvas-item-list";
 
 interface CanvasSectionProps {
   section: CanvasSectionData;
+  sectionId: string;
   className?: string;
   onUpdateItem: (
     sectionId: string,
@@ -20,6 +21,7 @@ interface CanvasSectionProps {
 
 export default function CanvasSection({
   section,
+  sectionId,
   className = "",
   onUpdateItem,
   onRemoveItem,
@@ -50,43 +52,45 @@ export default function CanvasSection({
       <div className="flex-1 overflow-y-auto">
         {section.subsections ? (
           <div className="h-full flex flex-col">
-            {section.subsections.map((subsection) => (
-              <div
-                key={subsection.title}
-                className="flex-1 border-b border-gray-200 pb-2 last:border-b-0 last:pb-0 flex flex-col"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-bold text-sm text-gray-900 uppercase tracking-wide">
-                    {subsection.title}
-                  </h3>
-                  <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    {`${subsection.items.length}/3`}
+            {Object.entries(section.subsections).map(
+              ([subsectionId, subsection]) => (
+                <div
+                  key={subsectionId}
+                  className="flex-1 border-b border-gray-200 pb-2 last:border-b-0 last:pb-0 flex flex-col"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-bold text-sm text-gray-900 uppercase tracking-wide">
+                      {subsection.title}
+                    </h3>
+                    <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      {`${subsection.items?.length || 0}/3`}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <CanvasItemList
+                      items={subsection.items || []}
+                      sectionId={sectionId}
+                      subsectionTitle={subsectionId}
+                      onUpdate={(index, value) =>
+                        onUpdateItem(sectionId, index, value, subsectionId)
+                      }
+                      onRemove={(index) =>
+                        onRemoveItem(sectionId, index, subsectionId)
+                      }
+                      onAdd={() => onAddItem(sectionId, subsectionId)}
+                    />
                   </div>
                 </div>
-                <div className="flex-1">
-                  <CanvasItemList
-                    items={subsection.items}
-                    sectionId={section.id}
-                    subsectionTitle={subsection.title}
-                    onUpdate={(index, value) =>
-                      onUpdateItem(section.id, index, value, subsection.title)
-                    }
-                    onRemove={(index) =>
-                      onRemoveItem(section.id, index, subsection.title)
-                    }
-                    onAdd={() => onAddItem(section.id, subsection.title)}
-                  />
-                </div>
-              </div>
-            ))}
+              )
+            )}
           </div>
         ) : (
           <CanvasItemList
             items={section.items || []}
-            sectionId={section.id}
-            onUpdate={(index, value) => onUpdateItem(section.id, index, value)}
-            onRemove={(index) => onRemoveItem(section.id, index)}
-            onAdd={() => onAddItem(section.id)}
+            sectionId={sectionId}
+            onUpdate={(index, value) => onUpdateItem(sectionId, index, value)}
+            onRemove={(index) => onRemoveItem(sectionId, index)}
+            onAdd={() => onAddItem(sectionId)}
           />
         )}
       </div>

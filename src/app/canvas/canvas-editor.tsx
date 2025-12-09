@@ -22,73 +22,76 @@ import {
 import { FloatingChatButton } from "@/components/floating-chat-button";
 import CanvasChat from "./canvas-chat";
 import CanvasSection from "./canvas-section";
-import { CanvasSection as CanvasSectionType } from "./types";
+import { CanvasState } from "./types";
 
-const initialCanvas: CanvasSectionType[] = [
-  {
-    id: "problem",
-    title: "Problem",
+const initialCanvas: CanvasState = {
+  problem: {
     order: 2,
-    subsections: [
-      { title: "Problem", items: [] },
-      { title: "Existing Alternatives", items: [] },
-    ],
+    title: "Problem",
+    subsections: {
+      problem: { title: "Problem", items: [] },
+      "existing-alternatives": { title: "Existing Alternatives", items: [] },
+    },
   },
-  {
-    id: "solution",
+  solution: {
     order: 4,
     title: "Solution",
     items: [],
   },
-  {
-    id: "key-metrics",
+  "key-metrics": {
     order: 8,
     title: "Key Metrics",
     items: [],
   },
-  {
-    id: "unique-value-proposition",
-    title: "Unique Value Proposition",
+  "unique-value-proposition": {
     order: 3,
-    subsections: [
-      { title: "Unique Value Proposition", items: [] },
-      { title: "High Level Concept", items: [] },
-    ],
+    title: "Unique Value Proposition",
+    subsections: {
+      "unique-value-proposition": {
+        title: "Unique Value Proposition",
+        items: [],
+      },
+      "high-level-concept": {
+        title: "High Level Concept",
+        items: [],
+      },
+    },
   },
-  {
-    id: "unfair-advantage",
+  "unfair-advantage": {
     order: 9,
     title: "Unfair Advantage",
     items: [],
   },
-  {
-    id: "channels",
+  channels: {
     order: 5,
     title: "Channels",
     items: [],
   },
-  {
-    id: "customer-segments",
-    title: "Customer Segments",
+  "customer-segments": {
     order: 1,
-    subsections: [
-      { title: "Customer Segments", items: [] },
-      { title: "Early Adopter", items: [] },
-    ],
+    title: "Customer Segments",
+    subsections: {
+      "customer-segments": {
+        title: "Customer Segments",
+        items: [],
+      },
+      "early-adopter": {
+        title: "Early Adopter",
+        items: [],
+      },
+    },
   },
-  {
-    id: "cost-structure",
+  "cost-structure": {
     order: 7,
     title: "Cost Structure",
     items: [],
   },
-  {
-    id: "revenue-streams",
+  "revenue-streams": {
     order: 6,
     title: "Revenue Streams",
     items: [],
   },
-];
+};
 
 const CanvasEditor = () => {
   const searchParams = useSearchParams();
@@ -102,7 +105,7 @@ const CanvasEditor = () => {
   });
 
   const [canvasName, setCanvasName] = useState<string>("Untitled Canvas");
-  const [canvas, setCanvas] = useState<CanvasSectionType[]>(initialCanvas);
+  const [canvas, setCanvas] = useState<CanvasState>(initialCanvas);
   const hasLoadedFromStorageRef = useRef(false);
 
   const [isChatOpen, setIsChatOpen] = useState(false); // Start with chat closed for testing
@@ -139,12 +142,10 @@ const CanvasEditor = () => {
         const storageKey = `lean-canvas-${urlCanvasId}`;
         const savedCanvas = localStorage.getItem(storageKey);
 
-        let foundCanvas = false;
         if (savedCanvas) {
           try {
-            const parsedCanvas = JSON.parse(savedCanvas);
+            const parsedCanvas: CanvasState = JSON.parse(savedCanvas);
             setCanvas(parsedCanvas);
-            foundCanvas = true;
           } catch (parseError) {
             console.error("Failed to parse canvas JSON:", parseError);
           }
@@ -269,28 +270,39 @@ const CanvasEditor = () => {
 
   const addItem = (sectionId: string, subsectionTitle?: string) => {
     setCanvas((prev) => {
-      return prev.map((section) => {
-        if (section.id === sectionId) {
-          if (subsectionTitle && section.subsections) {
-            return {
-              ...section,
-              subsections: section.subsections.map((sub) => {
-                if (sub.title === subsectionTitle && sub.items.length < 3) {
-                  return { ...sub, items: [...sub.items, ""] };
-                }
-                return sub;
-              }),
-            };
-          } else if (
-            !subsectionTitle &&
-            section?.items &&
-            section?.items?.length < 3
-          ) {
-            return { ...section, items: [...section.items, ""] };
-          }
+      const section = prev[sectionId];
+      if (!section) return prev;
+
+      if (subsectionTitle && section.subsections) {
+        const updatedSubsections = { ...section.subsections };
+        const subsection = updatedSubsections[subsectionTitle];
+        if (subsection && subsection.items && subsection.items.length < 3) {
+          updatedSubsections[subsectionTitle] = {
+            ...subsection,
+            items: [...subsection.items, ""],
+          };
         }
-        return section;
-      });
+        return {
+          ...prev,
+          [sectionId]: {
+            ...section,
+            subsections: updatedSubsections,
+          },
+        };
+      } else if (
+        !subsectionTitle &&
+        section.items &&
+        section.items.length < 3
+      ) {
+        return {
+          ...prev,
+          [sectionId]: {
+            ...section,
+            items: [...section.items, ""],
+          },
+        };
+      }
+      return prev;
     });
   };
 
@@ -300,30 +312,35 @@ const CanvasEditor = () => {
     subsectionTitle?: string
   ) => {
     setCanvas((prev) => {
-      return prev.map((section) => {
-        if (section.id === sectionId) {
-          if (subsectionTitle && section.subsections) {
-            return {
-              ...section,
-              subsections: section.subsections.map((sub) => {
-                if (sub.title === subsectionTitle) {
-                  return {
-                    ...sub,
-                    items: sub.items.filter((_, i) => i !== index),
-                  };
-                }
-                return sub;
-              }),
-            };
-          } else if (!subsectionTitle) {
-            return {
-              ...section,
-              items: section?.items?.filter((_, i) => i !== index),
-            };
-          }
+      const section = prev[sectionId];
+      if (!section) return prev;
+
+      if (subsectionTitle && section.subsections) {
+        const updatedSubsections = { ...section.subsections };
+        const subsection = updatedSubsections[subsectionTitle];
+        if (subsection && subsection.items) {
+          updatedSubsections[subsectionTitle] = {
+            ...subsection,
+            items: subsection.items.filter((_, i) => i !== index),
+          };
         }
-        return section;
-      });
+        return {
+          ...prev,
+          [sectionId]: {
+            ...section,
+            subsections: updatedSubsections,
+          },
+        };
+      } else if (!subsectionTitle) {
+        return {
+          ...prev,
+          [sectionId]: {
+            ...section,
+            items: section.items?.filter((_, i) => i !== index),
+          },
+        };
+      }
+      return prev;
     });
   };
 
@@ -334,39 +351,44 @@ const CanvasEditor = () => {
     value: string,
     subsectionTitle?: string
   ) => {
-    setCanvas((prev) =>
-      prev.map((section) => {
-        if (section.id === sectionId) {
-          if (subsectionTitle && section.subsections) {
-            return {
-              ...section,
-              subsections: section.subsections.map((sub) =>
-                sub.title === subsectionTitle
-                  ? {
-                      ...sub,
-                      items: sub.items.map((item, i) =>
-                        i === index ? value : item
-                      ),
-                    }
-                  : sub
-              ),
-            };
-          } else if (!subsectionTitle) {
-            return {
-              ...section,
-              items: section?.items?.map((item, i) =>
-                i === index ? value : item
-              ),
-            };
-          }
+    setCanvas((prev) => {
+      const section = prev[sectionId];
+      if (!section) return prev;
+
+      if (subsectionTitle && section.subsections) {
+        const updatedSubsections = { ...section.subsections };
+        const subsection = updatedSubsections[subsectionTitle];
+        if (subsection && subsection.items) {
+          updatedSubsections[subsectionTitle] = {
+            ...subsection,
+            items: subsection.items.map((item, i) =>
+              i === index ? value : item
+            ),
+          };
         }
-        return section;
-      })
-    );
+        return {
+          ...prev,
+          [sectionId]: {
+            ...section,
+            subsections: updatedSubsections,
+          },
+        };
+      } else if (!subsectionTitle) {
+        return {
+          ...prev,
+          [sectionId]: {
+            ...section,
+            items: section.items?.map((item, i) =>
+              i === index ? value : item
+            ),
+          },
+        };
+      }
+      return prev;
+    });
   };
 
-  const getSectionById = (id: string) =>
-    canvas.find((section) => section.id === id)!;
+  const getSectionById = (id: string) => canvas[id];
 
   const handleSaveCanvas = () => {
     const json = JSON.stringify(canvas, null, 2);
@@ -447,6 +469,15 @@ const CanvasEditor = () => {
     setIsChatOpen(true);
     setHasUnread(false);
   };
+
+  // Debug: Log canvas state being passed to chat
+  useEffect(() => {
+    console.log("CanvasEditor - Canvas state changed:", {
+      canvasId,
+      canvasState: canvas,
+      canvasKeys: Object.keys(canvas),
+    });
+  }, [canvas, canvasId]);
 
   return (
     <div className="h-screen w-full bg-gray-100 flex overflow-hidden">
@@ -532,6 +563,7 @@ const CanvasEditor = () => {
                 <div className="col-span-2 row-span-2">
                   <CanvasSection
                     section={getSectionById("problem")}
+                    sectionId="problem"
                     className="bg-orange-50"
                     onUpdateItem={updateItem}
                     onRemoveItem={removeItem}
@@ -541,6 +573,7 @@ const CanvasEditor = () => {
                 <div className="col-span-2">
                   <CanvasSection
                     section={getSectionById("solution")}
+                    sectionId="solution"
                     className="bg-blue-50"
                     onUpdateItem={updateItem}
                     onRemoveItem={removeItem}
@@ -550,6 +583,7 @@ const CanvasEditor = () => {
                 <div className="col-span-2 row-span-2">
                   <CanvasSection
                     section={getSectionById("unique-value-proposition")}
+                    sectionId="unique-value-proposition"
                     className="bg-yellow-50"
                     onUpdateItem={updateItem}
                     onRemoveItem={removeItem}
@@ -559,6 +593,7 @@ const CanvasEditor = () => {
                 <div className="col-span-2">
                   <CanvasSection
                     section={getSectionById("unfair-advantage")}
+                    sectionId="unfair-advantage"
                     className="bg-purple-50"
                     onUpdateItem={updateItem}
                     onRemoveItem={removeItem}
@@ -568,6 +603,7 @@ const CanvasEditor = () => {
                 <div className="col-span-2 row-span-2">
                   <CanvasSection
                     section={getSectionById("customer-segments")}
+                    sectionId="customer-segments"
                     className="bg-indigo-50"
                     onUpdateItem={updateItem}
                     onRemoveItem={removeItem}
@@ -579,6 +615,7 @@ const CanvasEditor = () => {
                 <div className="col-span-2">
                   <CanvasSection
                     section={getSectionById("key-metrics")}
+                    sectionId="key-metrics"
                     className="bg-teal-50"
                     onUpdateItem={updateItem}
                     onRemoveItem={removeItem}
@@ -588,6 +625,7 @@ const CanvasEditor = () => {
                 <div className="col-span-2">
                   <CanvasSection
                     section={getSectionById("channels")}
+                    sectionId="channels"
                     className="bg-cyan-50"
                     onUpdateItem={updateItem}
                     onRemoveItem={removeItem}
@@ -599,6 +637,7 @@ const CanvasEditor = () => {
                 <div className="col-span-5">
                   <CanvasSection
                     section={getSectionById("cost-structure")}
+                    sectionId="cost-structure"
                     className="bg-red-50"
                     onUpdateItem={updateItem}
                     onRemoveItem={removeItem}
@@ -608,6 +647,7 @@ const CanvasEditor = () => {
                 <div className="col-span-5">
                   <CanvasSection
                     section={getSectionById("revenue-streams")}
+                    sectionId="revenue-streams"
                     className="bg-green-50"
                     onUpdateItem={updateItem}
                     onRemoveItem={removeItem}
@@ -627,14 +667,12 @@ const CanvasEditor = () => {
 
       {/* Floating Chat Panel - shown when chat is open */}
       <CanvasChat
-        key={canvasId}
+        key={`${canvasId}-${JSON.stringify(canvas)}`} // Force re-render when canvas content changes
         isOpen={isChatOpen}
         onClose={handleCloseChat}
         onMessageUpdate={handleNewMessage}
         canvasId={canvasId}
-        canvasState={Object.fromEntries(
-          canvas.map((section) => [section.id, section])
-        )}
+        canvasState={canvas}
       />
     </div>
   );

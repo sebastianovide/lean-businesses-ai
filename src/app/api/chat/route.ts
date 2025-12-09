@@ -4,53 +4,40 @@ import { PinoLogger } from "@mastra/loggers";
 import { createUIMessageStreamResponse } from "ai";
 import { toAISdkFormat } from "@mastra/ai-sdk";
 import { RuntimeContext } from "@mastra/core/runtime-context";
+import { CanvasSection } from "@/app/canvas/types";
 
 const leanCanvasOrchestratorAgent = mastra.getAgent(
   "leanCanvasOrchestratorAgent"
 );
 const logger = new PinoLogger({ name: "ChatAPI", level: "info" });
 
-// Canvas state types
-interface CanvasSection {
-  id: string;
-  order: number;
-  title?: string;
-  items?: string[];
-  subsections?: { title: string; items: string[] }[];
-}
-
 interface MessagePart {
   type: string;
   text?: string;
 }
 
-function convertCanvasStateToString(canvasState: CanvasSection[] | any) {
+function convertCanvasStateToString(
+  canvasState: Record<string, CanvasSection>
+) {
   let canvasString = "=== Start of Lean Canvas State ===\n";
 
-  // Handle both array and object formats
-  let sections: CanvasSection[];
+  // Convert object format to array format and sort by order
+  const sections = Object.values(canvasState).sort(
+    (a, b) => (a.order ?? 0) - (b.order ?? 0)
+  );
 
-  if (Array.isArray(canvasState)) {
-    sections = canvasState;
-  } else if (typeof canvasState === "object" && canvasState !== null) {
-    // Convert object format to array format
-    sections = Object.values(canvasState);
-  } else {
-    sections = [];
-  }
+  sections.forEach((section) => {
+    canvasString += `## ${section.title}\n\n`;
+    section.items?.forEach((item) => {
+      canvasString += `* ${item}\n`;
+    });
+    if ((section.items?.length ?? 0) > 0) {
+      canvasString += "\n";
+    }
 
-  sections
-    .sort((a, b) => a.order - b.order)
-    .forEach((section) => {
-      canvasString += `## ${section.title}\n\n`;
-      section.items?.forEach((item) => {
-        canvasString += `* ${item}\n`;
-      });
-      if ((section.items?.length ?? 0) > 0) {
-        canvasString += "\n";
-      }
-
-      section.subsections?.forEach((subsection) => {
+    // Handle subsections as object format
+    if (section.subsections) {
+      Object.values(section.subsections).forEach((subsection) => {
         canvasString += `### ${subsection.title}:\n\n`;
         subsection.items?.forEach((item) => {
           canvasString += `* ${item}\n`;
@@ -59,7 +46,8 @@ function convertCanvasStateToString(canvasState: CanvasSection[] | any) {
           canvasString += "\n";
         }
       });
-    });
+    }
+  });
 
   canvasString += "\n=== End of Lean Canvas State ===\n";
 
@@ -68,6 +56,13 @@ function convertCanvasStateToString(canvasState: CanvasSection[] | any) {
 
 export async function POST(req: Request) {
   const { messages, canvasId, canvasState } = await req.json();
+
+  // Debug: Log what we received
+  console.log("API Route - Received canvasState:", canvasState);
+  console.log(
+    "API Route - CanvasState keys:",
+    canvasState ? Object.keys(canvasState) : "null/undefined"
+  );
 
   if (!canvasId) {
     return NextResponse.json(
@@ -92,8 +87,9 @@ export async function POST(req: Request) {
 
   try {
     const runtimeContext = new RuntimeContext();
-    logger.info("Canvas state", { canvasState });
-    runtimeContext.set("canvasState", convertCanvasStateToString(canvasState));
+    const strCanvasState = convertCanvasStateToString(canvasState);
+    logger.info("Canvas state", { strCanvasState });
+    runtimeContext.set("canvasState", strCanvasState);
 
     const networkStream = await leanCanvasOrchestratorAgent.network(
       messageText,

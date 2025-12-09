@@ -8,7 +8,7 @@ export const leanCanvasOrchestratorAgent = new Agent({
   description:
     "Central routing agent that coordinates the entire Lean Canvas creation process and delegates to specialist agents when needed.",
   instructions: async ({ runtimeContext }) => {
-    const canvasState = runtimeContext?.get("canvasState") || [];
+    const canvasState = runtimeContext?.get("canvasState") || "";
     return `
 # Role: Lean Canvas Coach
 
