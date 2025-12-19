@@ -57,13 +57,6 @@ function convertCanvasStateToString(
 export async function POST(req: Request) {
   const { messages, canvasId, canvasState } = await req.json();
 
-  // Debug: Log what we received
-  console.log("API Route - Received canvasState:", canvasState);
-  console.log(
-    "API Route - CanvasState keys:",
-    canvasState ? Object.keys(canvasState) : "null/undefined"
-  );
-
   if (!canvasId) {
     return NextResponse.json(
       { error: "canvasId is required" },
@@ -90,6 +83,7 @@ export async function POST(req: Request) {
     const strCanvasState = convertCanvasStateToString(canvasState);
     logger.info("Canvas state", { strCanvasState });
     runtimeContext.set("canvasState", strCanvasState);
+    runtimeContext.set("canvasId", canvasId);
 
     const networkStream = await leanCanvasOrchestratorAgent.network(
       messageText,
@@ -103,8 +97,11 @@ export async function POST(req: Request) {
       }
     );
 
+    // Process the network stream to extract tool responses
+    const stream = toAISdkFormat(networkStream, { from: "network" });
+
     return createUIMessageStreamResponse({
-      stream: toAISdkFormat(networkStream, { from: "network" }),
+      stream: stream,
     });
   } catch (error: unknown) {
     const err = error as Error;

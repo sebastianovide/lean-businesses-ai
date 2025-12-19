@@ -1,6 +1,6 @@
 "use client";
 import { useChat } from "@ai-sdk/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Conversation,
   ConversationContent,
@@ -50,6 +50,8 @@ interface DataNetworkPart {
   };
 }
 
+import { useCanvasContext } from "@/contexts/canvas-context";
+
 export default function CanvasChat({
   isOpen,
   onClose,
@@ -57,6 +59,7 @@ export default function CanvasChat({
   canvasId,
   canvasState,
 }: CanvasChatProps) {
+  const { applyToolChanges } = useCanvasContext();
   const [input, setInput] = useState("");
 
   // Debug: Log canvas state to verify it's being passed correctly
@@ -75,19 +78,82 @@ export default function CanvasChat({
     }),
   });
 
-  // Only track when streaming ends (AI response completed) to avoid too frequent updates
+  // Track processed tool calls to avoid double-applying
+  const appliedToolCallIds = useRef<Set<string>>(new Set());
+
+  // Monitor messages for tool changes and apply them
   useEffect(() => {
-    console.log("Chat status change:", {
-      status,
-      isOpen,
-      messagesLength: messages.length,
+    if (status !== "ready") return;
+
+    messages.forEach((message) => {
+      if (message.role !== "assistant") return;
+
+      const dataNetworkPart = message.parts?.find(
+        (p) => p.type === "data-network"
+      ) as DataNetworkPart | undefined;
+
+      if (dataNetworkPart?.data.steps) {
+        dataNetworkPart.data.steps.forEach((step, index) => {
+          const callId = `${message.id}-${index}`;
+
+          // Check if step is done or has output
+          const isStepComplete =
+            step.status === "success" ||
+            (step.output && step.output.length > 0);
+
+          if (isStepComplete && !appliedToolCallIds.current.has(callId)) {
+            try {
+              // The output of Mastra tools is expected to be a stringified JSON
+              // that contains a 'changes' array
+              console.log("Processing tool step:", step);
+              if (step.output) {
+                console.log("Raw step output:", step.output);
+                let output;
+
+                if (typeof step.output === "object") {
+                  output = step.output;
+                } else {
+                  try {
+                    output = JSON.parse(step.output);
+                  } catch (e) {
+                    console.log("Failed to parse step output as JSON:", e);
+                  }
+                }
+
+                if (output) {
+                  console.log("Parsed output:", output);
+                  // Handle both direct changes and nested result.changes
+                  const changes = output.changes || output.result?.changes;
+
+                  if (changes && Array.isArray(changes)) {
+                    console.log(
+                      `Applying ${changes.length} changes from tool: ${step.name}`,
+                      changes
+                    );
+                    applyToolChanges(changes);
+                    appliedToolCallIds.current.add(callId);
+                  } else {
+                    console.log("No 'changes' array found in output");
+                  }
+                }
+              }
+            } catch (e) {
+              // Not all tool outputs are JSON or contain changes, which is fine
+              console.debug(
+                `Skipping non-state-changing tool output for ${step.name}`,
+                e
+              );
+            }
+          }
+        });
+      }
     });
-    if (status === "ready" && onMessageUpdate) {
-      // AI just finished streaming, notify parent
+
+    if (onMessageUpdate) {
       console.log("AI streaming ended, notifying parent");
       onMessageUpdate(messages.length);
     }
-  }, [status, messages.length, onMessageUpdate, isOpen]);
+  }, [status, messages, applyToolChanges, onMessageUpdate]);
 
   console.info("messages, status", { messages, status });
 
@@ -170,7 +236,17 @@ export default function CanvasChat({
                                 ? dataNetworkPart.data.steps
                                     .map((step) => {
                                       const parts = [`**${step.name}**`];
-                                      if (step.output) parts.push(step.output);
+                                      if (step.output) {
+                                        const outputStr =
+                                          typeof step.output === "object"
+                                            ? JSON.stringify(
+                                                step.output,
+                                                null,
+                                                2
+                                              )
+                                            : step.output;
+                                        parts.push(outputStr);
+                                      }
                                       if (step.input?.selectionReason) {
                                         parts.push(
                                           `*Why: ${step.input.selectionReason}*`

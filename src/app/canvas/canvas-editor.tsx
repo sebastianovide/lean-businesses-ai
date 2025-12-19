@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-
 import { Link as LinkIcon, Trash2, Download } from "lucide-react";
-
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -20,97 +18,62 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { FloatingChatButton } from "@/components/floating-chat-button";
+import { CanvasProvider, useCanvasContext } from "@/contexts/canvas-context";
 import CanvasChat from "./canvas-chat";
 import CanvasSection from "./canvas-section";
-import { CanvasState, CanvasStorage } from "./types";
+// Component that uses the canvas context
+const CanvasEditorContent = () => {
+  const {
+    canvasId,
+    canvasName,
+    canvas,
+    setCanvasId,
+    setCanvasName,
+    updateItem,
+    addItem,
+    removeItem,
+    clearCanvas,
+    loadFromStorage,
+    applyToolChanges,
+    clearPendingChanges,
+  } = useCanvasContext();
 
-const initialCanvas: CanvasState = {
-  problem: {
-    order: 2,
-    title: "Problem",
-    subsections: {
-      problem: { title: "Problem", items: [] },
-      "existing-alternatives": { title: "Existing Alternatives", items: [] },
-    },
-  },
-  solution: {
-    order: 4,
-    title: "Solution",
-    items: [],
-  },
-  "key-metrics": {
-    order: 8,
-    title: "Key Metrics",
-    items: [],
-  },
-  "unique-value-proposition": {
-    order: 3,
-    title: "Unique Value Proposition",
-    subsections: {
-      "unique-value-proposition": {
-        title: "Unique Value Proposition",
-        items: [],
-      },
-      "high-level-concept": {
-        title: "High Level Concept",
-        items: [],
-      },
-    },
-  },
-  "unfair-advantage": {
-    order: 9,
-    title: "Unfair Advantage",
-    items: [],
-  },
-  channels: {
-    order: 5,
-    title: "Channels",
-    items: [],
-  },
-  "customer-segments": {
-    order: 1,
-    title: "Customer Segments",
-    subsections: {
-      "customer-segments": {
-        title: "Customer Segments",
-        items: [],
-      },
-      "early-adopter": {
-        title: "Early Adopter",
-        items: [],
-      },
-    },
-  },
-  "cost-structure": {
-    order: 7,
-    title: "Cost Structure",
-    items: [],
-  },
-  "revenue-streams": {
-    order: 6,
-    title: "Revenue Streams",
-    items: [],
-  },
-};
-
-const CanvasEditor = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initializationRef = useRef(false);
-
-  // Canvas ID management - get from URL or generate new
-  const [canvasId, setCanvasId] = useState<string>(() => {
-    const urlCanvasId = searchParams.get("canvasId");
-    return urlCanvasId || uuidv4();
-  });
-
-  const [canvasName, setCanvasName] = useState<string>("Untitled Canvas");
-  const [canvas, setCanvas] = useState<CanvasState>(initialCanvas);
-  const hasLoadedFromStorageRef = useRef(false);
-
-  const [isChatOpen, setIsChatOpen] = useState(false); // Start with chat closed for testing
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   const [lastMessageCount, setLastMessageCount] = useState(0);
+
+  // Load canvas from localStorage on client side
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const urlCanvasId = searchParams.get("canvasId");
+    if (!urlCanvasId) {
+      // Mark as loaded after a short delay for new canvases
+      const timeoutId = setTimeout(() => {
+        // hasLoadedFromStorageRef.current = true; // This is now handled by the context
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+
+    const loadData = () => {
+      try {
+        const storageData = localStorage.getItem("lean-canvases-storage");
+        if (storageData) {
+          const canvasStorage = JSON.parse(storageData);
+          loadFromStorage(canvasStorage);
+        }
+      } catch (err) {
+        console.error("Failed to load from localStorage:", err);
+      }
+    };
+
+    // Use a small delay to ensure DOM is ready
+    const timeoutId = setTimeout(loadData, 50);
+    return () => clearTimeout(timeoutId);
+  }, [searchParams, loadFromStorage]);
 
   // Update URL if canvas ID was generated locally
   useEffect(() => {
@@ -123,224 +86,7 @@ const CanvasEditor = () => {
     }
   }, [canvasId, router, searchParams]);
 
-  // Load canvas from localStorage on client side
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const urlCanvasId = searchParams.get("canvasId");
-    if (!urlCanvasId) {
-      // Mark as loaded after a short delay for new canvases
-      const timeoutId = setTimeout(() => {
-        hasLoadedFromStorageRef.current = true;
-      }, 100);
-      return () => clearTimeout(timeoutId);
-    }
-
-    const loadData = () => {
-      try {
-        const storageData = localStorage.getItem("lean-canvases-storage");
-
-        if (storageData) {
-          try {
-            const canvasStorage: CanvasStorage = JSON.parse(storageData);
-            const storedCanvas = canvasStorage[urlCanvasId];
-
-            if (storedCanvas) {
-              setCanvas(storedCanvas.state);
-              setCanvasName(storedCanvas.name);
-            }
-          } catch (parseError) {
-            console.error("Failed to parse canvas storage JSON:", parseError);
-          }
-        }
-
-        // Mark as loaded after we've attempted to load
-        hasLoadedFromStorageRef.current = true;
-      } catch (err) {
-        console.error("Failed to load from localStorage:", err);
-        // Reset to initial state if loading fails
-        setCanvas(initialCanvas);
-        setCanvasName("Untitled Canvas");
-        hasLoadedFromStorageRef.current = true;
-      }
-    };
-
-    // Use a small delay to ensure DOM is ready
-    const timeoutId = setTimeout(loadData, 50);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchParams]);
-
-  // Helper to save canvas to the simplified storage structure
-  const saveCanvasToStorage = useCallback(
-    (id: string, state: CanvasState, name: string) => {
-      if (typeof window === "undefined") {
-        return;
-      }
-
-      try {
-        const storageData = localStorage.getItem("lean-canvases-storage");
-        const canvasStorage: CanvasStorage = storageData
-          ? JSON.parse(storageData)
-          : {};
-
-        const now = new Date().toISOString();
-
-        if (canvasStorage[id]) {
-          // Update existing canvas
-          canvasStorage[id] = {
-            ...canvasStorage[id],
-            state,
-            name,
-            updatedAt: now,
-          };
-        } else {
-          // Add new canvas
-          canvasStorage[id] = {
-            state,
-            name,
-            createdAt: now,
-            updatedAt: now,
-          };
-        }
-
-        localStorage.setItem(
-          "lean-canvases-storage",
-          JSON.stringify(canvasStorage)
-        );
-      } catch (err) {
-        console.error("Failed to save canvas to storage:", err);
-      }
-    },
-    []
-  );
-
-  // Save canvas to storage when canvas or name changes
-  useEffect(() => {
-    if (!canvasId || !hasLoadedFromStorageRef.current) return;
-
-    saveCanvasToStorage(canvasId, canvas, canvasName);
-  }, [canvasId, canvas, canvasName, saveCanvasToStorage]);
-
-  const addItem = (sectionId: string, subsectionTitle?: string) => {
-    setCanvas((prev) => {
-      const section = prev[sectionId];
-      if (!section) return prev;
-
-      if (subsectionTitle && section.subsections) {
-        const updatedSubsections = { ...section.subsections };
-        const subsection = updatedSubsections[subsectionTitle];
-        if (subsection && subsection.items && subsection.items.length < 3) {
-          updatedSubsections[subsectionTitle] = {
-            ...subsection,
-            items: [...subsection.items, ""],
-          };
-        }
-        return {
-          ...prev,
-          [sectionId]: {
-            ...section,
-            subsections: updatedSubsections,
-          },
-        };
-      } else if (
-        !subsectionTitle &&
-        section.items &&
-        section.items.length < 3
-      ) {
-        return {
-          ...prev,
-          [sectionId]: {
-            ...section,
-            items: [...section.items, ""],
-          },
-        };
-      }
-      return prev;
-    });
-  };
-
-  const removeItem = (
-    sectionId: string,
-    index: number,
-    subsectionTitle?: string
-  ) => {
-    setCanvas((prev) => {
-      const section = prev[sectionId];
-      if (!section) return prev;
-
-      if (subsectionTitle && section.subsections) {
-        const updatedSubsections = { ...section.subsections };
-        const subsection = updatedSubsections[subsectionTitle];
-        if (subsection && subsection.items) {
-          updatedSubsections[subsectionTitle] = {
-            ...subsection,
-            items: subsection.items.filter((_, i) => i !== index),
-          };
-        }
-        return {
-          ...prev,
-          [sectionId]: {
-            ...section,
-            subsections: updatedSubsections,
-          },
-        };
-      } else if (!subsectionTitle) {
-        return {
-          ...prev,
-          [sectionId]: {
-            ...section,
-            items: section.items?.filter((_, i) => i !== index),
-          },
-        };
-      }
-      return prev;
-    });
-  };
-
-  // Modified updateItem: only update value, do not send bot message
-  const updateItem = (
-    sectionId: string,
-    index: number,
-    value: string,
-    subsectionTitle?: string
-  ) => {
-    setCanvas((prev) => {
-      const section = prev[sectionId];
-      if (!section) return prev;
-
-      if (subsectionTitle && section.subsections) {
-        const updatedSubsections = { ...section.subsections };
-        const subsection = updatedSubsections[subsectionTitle];
-        if (subsection && subsection.items) {
-          updatedSubsections[subsectionTitle] = {
-            ...subsection,
-            items: subsection.items.map((item, i) =>
-              i === index ? value : item
-            ),
-          };
-        }
-        return {
-          ...prev,
-          [sectionId]: {
-            ...section,
-            subsections: updatedSubsections,
-          },
-        };
-      } else if (!subsectionTitle) {
-        return {
-          ...prev,
-          [sectionId]: {
-            ...section,
-            items: section.items?.map((item, i) =>
-              i === index ? value : item
-            ),
-          },
-        };
-      }
-      return prev;
-    });
-  };
+  // Initialization
 
   const getSectionById = (id: string) => canvas[id];
 
@@ -364,7 +110,7 @@ const CanvasEditor = () => {
     try {
       const storageData = localStorage.getItem("lean-canvases-storage");
       if (storageData) {
-        const canvasStorage: CanvasStorage = JSON.parse(storageData);
+        const canvasStorage = JSON.parse(storageData);
         delete canvasStorage[canvasId];
         localStorage.setItem(
           "lean-canvases-storage",
@@ -376,7 +122,7 @@ const CanvasEditor = () => {
     }
 
     // Reset canvas to initial state
-    setCanvas(initialCanvas);
+    clearCanvas();
 
     // Generate new ID and redirect
     const newId = uuidv4();
@@ -616,7 +362,7 @@ const CanvasEditor = () => {
 
       {/* Floating Chat Panel - shown when chat is open */}
       <CanvasChat
-        key={`${canvasId}-${JSON.stringify(canvas)}`} // Force re-render when canvas content changes
+        key={canvasId} // Stable key to preserve chat state updates
         isOpen={isChatOpen}
         onClose={handleCloseChat}
         onMessageUpdate={handleNewMessage}
@@ -627,4 +373,14 @@ const CanvasEditor = () => {
   );
 };
 
-export default CanvasEditor;
+// Main component that provides the canvas context
+export default function CanvasEditor() {
+  const searchParams = useSearchParams();
+  const canvasId = searchParams.get("canvasId") || undefined;
+
+  return (
+    <CanvasProvider initialCanvasId={canvasId}>
+      <CanvasEditorContent />
+    </CanvasProvider>
+  );
+}

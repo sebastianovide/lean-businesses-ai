@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { memory } from "../storage";
+import { canvasTools } from "../tools/canvas-tools";
 import { firstCustomerAgent } from "./first-customer-agent";
 import { problemDiscoveryAgent } from "./problem-discovery-agent";
 
@@ -83,6 +84,6 @@ When specialists provide data, integrate it with canvas reality.
     firstCustomerAgent,
     problemDiscoveryAgent,
   },
-  tools: {},
+  tools: canvasTools,
   memory,
 });
