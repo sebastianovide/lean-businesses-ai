@@ -48,7 +48,7 @@ Download and install from: [docker.com/products/docker-desktop](https://www.dock
 ### 4. Run the Application
 
 ```bash
-docker compose up
+docker run --pull always -p 3000:3000 --env-file .env ghcr.io/sebastianovide/lean-businesses-ai:main
 ```
 
 Once running, open your browser to:
