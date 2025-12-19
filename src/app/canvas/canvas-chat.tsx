@@ -237,15 +237,40 @@ export default function CanvasChat({
                                     .map((step) => {
                                       const parts = [`**${step.name}**`];
                                       if (step.output) {
-                                        const outputStr =
-                                          typeof step.output === "object"
-                                            ? JSON.stringify(
-                                                step.output,
-                                                null,
-                                                2
-                                              )
-                                            : step.output;
-                                        parts.push(outputStr);
+                                        let outputObj = step.output;
+                                        if (typeof step.output === "string") {
+                                          try {
+                                            outputObj = JSON.parse(step.output);
+                                          } catch (e) {
+                                            // Keep as string if parse fails
+                                          }
+                                        }
+
+                                        // Prefer the user-friendly message if available
+                                        if (
+                                          outputObj &&
+                                          typeof outputObj === "object" &&
+                                          "message" in outputObj
+                                        ) {
+                                          // Only show the friendly message, don't show the tool name
+                                          parts.pop(); // Remove the tool name added at start
+                                          parts.push(
+                                            `✅ **${
+                                              (outputObj as { message: string })
+                                                .message
+                                            }**`
+                                          );
+                                        } else {
+                                          const outputStr =
+                                            typeof step.output === "object"
+                                              ? JSON.stringify(
+                                                  step.output,
+                                                  null,
+                                                  2
+                                                )
+                                              : step.output;
+                                          parts.push(outputStr);
+                                        }
                                       }
                                       if (step.input?.selectionReason) {
                                         parts.push(

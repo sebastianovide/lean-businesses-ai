@@ -221,9 +221,29 @@ export const canvasBatchUpdateTool = createTool({
       }
     );
 
+    const summary = changes
+      .map((c) => {
+        const target = c.subsectionTitle
+          ? `subsection '${c.subsectionTitle}' for section '${c.sectionId}'`
+          : `section '${c.sectionId}'`;
+        switch (c.type) {
+          case "add":
+            return `Added '${c.value}' to ${target}`;
+          case "update":
+            return `Updated item at index ${c.index} in ${target} to '${c.value}'`;
+          case "remove":
+            return `Removed item at index ${c.index} from ${target}`;
+          case "replace":
+            return `Replaced entire canvas state`;
+          default:
+            return `Modified ${target}`;
+        }
+      })
+      .join("; ");
+
     return {
       changes,
-      message: `Performed ${context.operations.length} canvas operations`,
+      message: summary || `Performed ${changes.length} canvas operations`,
     };
   },
 });

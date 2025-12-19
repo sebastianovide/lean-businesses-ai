@@ -6,7 +6,7 @@
 
 ## Features
 
-- [ ] let AI update the canvas if the users wants to (using a tool)
+- [x] let AI update the canvas if the users wants to (using a tool)
 - [ ] let AI start the conversation
 - [x] when thinking display which agent is thinking
 - [x] add a collapsed thinking section to the UI
