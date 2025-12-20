@@ -10,20 +10,31 @@ import {
   Message,
   MessageContent,
   MessageResponse,
+  MessageActions,
+  MessageAction,
 } from "@/components/ai-elements/message";
 import {
   PromptInput,
   PromptInputBody,
   PromptInputTextarea,
   PromptInputSubmit,
+  PromptInputFooter,
 } from "@/components/ai-elements/prompt-input";
 import {
   Reasoning,
-  ReasoningContent,
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning";
+import { CollapsibleContent } from "@/components/ui/collapsible";
+import { Loader } from "@/components/ai-elements/loader";
 import { DefaultChatTransport } from "ai";
 import { CanvasState } from "./types";
+import { useCanvasContext } from "@/contexts/canvas-context";
+import { CopyIcon, XIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// Using 'as any' for these components to bypass incorrect "multiple children" lint errors
+// that stem from complex type interactions (React 19 + internal component typings)
+const AssistantMessageResponse = MessageResponse as any;
 
 interface CanvasChatProps {
   isOpen: boolean;
@@ -50,8 +61,6 @@ interface DataNetworkPart {
   };
 }
 
-import { useCanvasContext } from "@/contexts/canvas-context";
-
 export default function CanvasChat({
   isOpen,
   onClose,
@@ -61,12 +70,6 @@ export default function CanvasChat({
 }: CanvasChatProps) {
   const { applyToolChanges } = useCanvasContext();
   const [input, setInput] = useState("");
-
-  // Debug: Log canvas state to verify it's being passed correctly
-  useEffect(() => {
-    console.log("CanvasChat - Canvas State:", canvasState);
-    console.log("CanvasChat - Canvas State keys:", Object.keys(canvasState));
-  }, [canvasState]);
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
@@ -78,10 +81,8 @@ export default function CanvasChat({
     }),
   });
 
-  // Track processed tool calls to avoid double-applying
   const appliedToolCallIds = useRef<Set<string>>(new Set());
 
-  // Monitor messages for tool changes and apply them
   useEffect(() => {
     if (status !== "ready") return;
 
@@ -95,50 +96,31 @@ export default function CanvasChat({
       if (dataNetworkPart?.data.steps) {
         dataNetworkPart.data.steps.forEach((step, index) => {
           const callId = `${message.id}-${index}`;
-
-          // Check if step is done or has output
           const isStepComplete =
             step.status === "success" ||
             (step.output && step.output.length > 0);
 
           if (isStepComplete && !appliedToolCallIds.current.has(callId)) {
             try {
-              // The output of Mastra tools is expected to be a stringified JSON
-              // that contains a 'changes' array
-              console.log("Processing tool step:", step);
               if (step.output) {
-                console.log("Raw step output:", step.output);
                 let output;
-
                 if (typeof step.output === "object") {
                   output = step.output;
                 } else {
                   try {
                     output = JSON.parse(step.output);
-                  } catch (e) {
-                    console.log("Failed to parse step output as JSON:", e);
-                  }
+                  } catch (e) {}
                 }
 
                 if (output) {
-                  console.log("Parsed output:", output);
-                  // Handle both direct changes and nested result.changes
                   const changes = output.changes || output.result?.changes;
-
                   if (changes && Array.isArray(changes)) {
-                    console.log(
-                      `Applying ${changes.length} changes from tool: ${step.name}`,
-                      changes
-                    );
                     applyToolChanges(changes);
                     appliedToolCallIds.current.add(callId);
-                  } else {
-                    console.log("No 'changes' array found in output");
                   }
                 }
               }
             } catch (e) {
-              // Not all tool outputs are JSON or contain changes, which is fine
               console.debug(
                 `Skipping non-state-changing tool output for ${step.name}`,
                 e
@@ -150,12 +132,9 @@ export default function CanvasChat({
     });
 
     if (onMessageUpdate) {
-      console.log("AI streaming ended, notifying parent");
       onMessageUpdate(messages.length);
     }
   }, [status, messages, applyToolChanges, onMessageUpdate]);
-
-  console.info("messages, status", { messages, status });
 
   const handleSubmit = () => {
     if (!input.trim()) return;
@@ -164,166 +143,180 @@ export default function CanvasChat({
   };
 
   return (
-    <div
-      className={`fixed bottom-6 right-6 w-96 h-[600px] bg-background border shadow-lg rounded-lg flex flex-col z-50 ${
-        isOpen
-          ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
-          : "opacity-0 translate-y-4 scale-95 pointer-events-none"
-      }`}
-      style={{
-        animation: isOpen
-          ? "slideInFromBottom 0.5s cubic-bezier(0.16, 1, 0.3, 1)"
-          : "slideOutToBottom 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
-      }}
-    >
-      <div className="flex items-center justify-between p-4 border-b bg-gray-50 rounded-t-lg cursor-move">
+    <div className="flex flex-col h-full bg-background border-l shadow-lg overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b bg-muted/30">
         <div className="flex items-center gap-2">
-          <h2 className="font-semibold">Canvas Chat</h2>
+          <h2 className="font-semibold text-sm">Canvas Co-pilot</h2>
           {status !== "ready" && (
-            <span className="text-xs text-muted-foreground animate-pulse">
-              {status === "streaming" ? "Responding..." : "Thinking..."}
-            </span>
+            <div className="flex items-center gap-1.5 ">
+              <Loader size={12} className="text-primary" />
+              <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground animate-pulse">
+                {status === "streaming" ? "Typing..." : "Thinking..."}
+              </span>
+            </div>
           )}
         </div>
         <button
           onClick={onClose}
-          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-gray-200 transition-colors"
+          className="text-muted-foreground hover:text-foreground p-1.5 rounded-full hover:bg-muted transition-colors"
         >
-          ✕
+          <XIcon size={16} />
         </button>
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col">
-        <Conversation>
-          <ConversationContent className="overflow-y-auto flex-1">
+        <Conversation className="h-full">
+          <ConversationContent className="p-4 space-y-6">
             {messages.map((message, msgIdx) => {
-              // Extract reasoning and final text
-              const dataNetworkPart = message.parts?.find(
-                (p) => p.type === "data-network"
-              ) as DataNetworkPart | undefined;
-
-              const textParts = message.parts?.filter(
-                (p): p is { type: "text"; text: string } =>
-                  p.type === "text" && !!(p as { text?: string }).text?.trim()
-              );
-
-              const finalText = textParts?.[textParts.length - 1]?.text;
-
               const isLastMessage = msgIdx === messages.length - 1;
 
               return (
-                <Message key={message.id} from={message.role}>
-                  <MessageContent>
-                    {/* User message - just show text */}
-                    {message.role === "user" && <span>{finalText}</span>}
+                <div key={message.id} className="space-y-4">
+                  {message.parts?.map((part, partIdx) => {
+                    const partKey = `${message.id}-${partIdx}`;
 
-                    {/* Assistant message - show reasoning + response */}
-                    {message.role === "assistant" && (
-                      <>
-                        {/* Show agent thinking - always visible for assistant messages */}
-                        <div className="mb-4">
+                    if (part.type === "text") {
+                      return (
+                        <Message key={partKey} from={message.role}>
+                          <MessageContent>
+                            <AssistantMessageResponse>
+                              {part.text}
+                            </AssistantMessageResponse>
+                          </MessageContent>
+                          {message.role === "assistant" && (
+                            <MessageActions>
+                              <MessageAction
+                                onClick={() =>
+                                  navigator.clipboard.writeText(part.text)
+                                }
+                                label="Copy"
+                              >
+                                <CopyIcon size={12} />
+                              </MessageAction>
+                            </MessageActions>
+                          )}
+                        </Message>
+                      );
+                    }
+
+                    if (part.type === "data-network") {
+                      const dataNetwork = part as DataNetworkPart;
+                      return (
+                        <div key={partKey} className="space-y-4">
                           <Reasoning
                             isStreaming={
                               status === "streaming" && isLastMessage
                             }
-                            defaultOpen={true}
+                            defaultOpen={msgIdx === messages.length - 1}
+                            className="w-full"
                           >
                             <ReasoningTrigger />
-                            <ReasoningContent>
-                              {dataNetworkPart &&
-                              dataNetworkPart.data.steps &&
-                              dataNetworkPart.data.steps.length > 0
-                                ? dataNetworkPart.data.steps
-                                    .map((step) => {
-                                      const parts = [`**${step.name}**`];
-                                      if (step.output) {
-                                        let outputObj = step.output;
-                                        if (typeof step.output === "string") {
-                                          try {
-                                            outputObj = JSON.parse(step.output);
-                                          } catch (e) {
-                                            // Keep as string if parse fails
-                                          }
-                                        }
+                            {/* Using CollapsibleContent directly instead of ReasoningContent 
+                                because ReasoningContent only accepts a string (markdown) 
+                                but we need to render tool steps as JSX. */}
+                            <CollapsibleContent
+                              className={cn(
+                                "mt-4 text-sm",
+                                "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in"
+                              )}
+                            >
+                              {dataNetwork.data.steps &&
+                              dataNetwork.data.steps.length > 0 ? (
+                                <div className="space-y-3">
+                                  {dataNetwork.data.steps.map((step, sIdx) => {
+                                    let outputMsg = "";
+                                    if (step.output) {
+                                      try {
+                                        const parsed =
+                                          typeof step.output === "string"
+                                            ? JSON.parse(step.output)
+                                            : step.output;
+                                        outputMsg =
+                                          parsed.message ||
+                                          (typeof parsed === "string"
+                                            ? parsed
+                                            : "");
+                                      } catch (e) {}
+                                    }
 
-                                        // Prefer the user-friendly message if available
-                                        if (
-                                          outputObj &&
-                                          typeof outputObj === "object" &&
-                                          "message" in outputObj
-                                        ) {
-                                          // Only show the friendly message, don't show the tool name
-                                          parts.pop(); // Remove the tool name added at start
-                                          parts.push(
-                                            `✅ **${
-                                              (outputObj as { message: string })
-                                                .message
-                                            }**`
-                                          );
-                                        } else {
-                                          const outputStr =
-                                            typeof step.output === "object"
-                                              ? JSON.stringify(
-                                                  step.output,
-                                                  null,
-                                                  2
-                                                )
-                                              : step.output;
-                                          parts.push(outputStr);
-                                        }
-                                      }
-                                      if (step.input?.selectionReason) {
-                                        parts.push(
-                                          `*Why: ${step.input.selectionReason}*`
-                                        );
-                                      }
-                                      return parts.join("\n\n");
-                                    })
-                                    .join("\n\n---\n\n")
-                                : "AI is processing your request..."}
-                            </ReasoningContent>
+                                    return (
+                                      <div
+                                        key={sIdx}
+                                        className="text-xs border-l-2 border-primary/20 pl-2 py-1"
+                                      >
+                                        <div className="font-semibold text-primary/80">
+                                          {step.name}
+                                        </div>
+                                        {outputMsg && (
+                                          <div className="mt-1 opacity-80">
+                                            {outputMsg}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                "Analyzing canvas context..."
+                              )}
+                            </CollapsibleContent>
                           </Reasoning>
+
+                          {dataNetwork.data.status === "finished" &&
+                            dataNetwork.data.output && (
+                              <Message from="assistant">
+                                <MessageContent>
+                                  <AssistantMessageResponse>
+                                    {dataNetwork.data.output}
+                                  </AssistantMessageResponse>
+                                </MessageContent>
+                                <MessageActions>
+                                  <MessageAction
+                                    onClick={() =>
+                                      navigator.clipboard.writeText(
+                                        dataNetwork.data.output || ""
+                                      )
+                                    }
+                                    label="Copy"
+                                  >
+                                    <CopyIcon size={12} />
+                                  </MessageAction>
+                                </MessageActions>
+                              </Message>
+                            )}
                         </div>
+                      );
+                    }
 
-                        {/* Show final response - with similar background to user but different color */}
-                        {dataNetworkPart?.data.status === "finished" &&
-                          dataNetworkPart.data.output && (
-                            <div className="mt-2 bg-muted rounded-lg px-4 py-3">
-                              <MessageResponse>
-                                {dataNetworkPart.data.output}
-                              </MessageResponse>
-                            </div>
-                          )}
-
-                        {/* Fallback if no data-network but has text */}
-                        {!dataNetworkPart && finalText && (
-                          <div className="mt-2 bg-muted rounded-lg px-4 py-3">
-                            <MessageResponse>{finalText}</MessageResponse>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </MessageContent>
-                </Message>
+                    return null;
+                  })}
+                </div>
               );
             })}
-
+            {status === "submitted" && (
+              <div className="flex justify-center p-4">
+                <Loader size={20} className="text-muted-foreground/50" />
+              </div>
+            )}
             <ConversationScrollButton />
           </ConversationContent>
         </Conversation>
       </div>
 
-      <div className="p-4 border-t">
+      <div className="p-4 bg-background border-t">
         <PromptInput onSubmit={handleSubmit}>
           <PromptInputBody>
             <PromptInputTextarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about your canvas..."
-              disabled={status !== "ready"}
+              placeholder="Improve the canvas..."
+              className="min-h-[80px]"
             />
-            <PromptInputSubmit disabled={status !== "ready"} />
           </PromptInputBody>
+          <PromptInputFooter>
+            <div className="flex-1" />
+            <PromptInputSubmit status={status} />
+          </PromptInputFooter>
         </PromptInput>
       </div>
     </div>

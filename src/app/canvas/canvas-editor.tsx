@@ -175,12 +175,16 @@ const CanvasEditorContent = () => {
   }, [canvas, canvasId]);
 
   return (
-    <div className="h-screen w-full bg-gray-100 flex overflow-hidden">
-      <div className="flex-1 flex flex-col h-full min-w-0">
+    <div className="h-screen w-full bg-gray-100 flex overflow-hidden relative">
+      <div
+        className={`flex-1 flex flex-col h-full min-w-0 transition-all duration-300 ease-in-out ${
+          isChatOpen ? "mr-96" : "mr-0"
+        }`}
+      >
         {/* Main content (canvas) */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Navigation */}
-          <div className="text-center py-2 bg-white px-6">
+          <div className="text-center py-2 bg-white px-6 border-b">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Lean Canvas Editor
             </h1>
@@ -193,7 +197,7 @@ const CanvasEditorContent = () => {
             />
 
             {/* Navigation Links */}
-            <div className="mt-4 flex justify-center gap-8">
+            <div className="mt-4 flex justify-center gap-8 pb-2">
               <Button
                 asChild
                 className="bg-gray-800 hover:bg-gray-900 text-white shadow-sm hover:shadow transition-all"
@@ -360,15 +364,21 @@ const CanvasEditorContent = () => {
         <FloatingChatButton onClick={handleOpenChat} hasUnread={hasUnread} />
       )}
 
-      {/* Floating Chat Panel - shown when chat is open */}
-      <CanvasChat
-        key={canvasId} // Stable key to preserve chat state updates
-        isOpen={isChatOpen}
-        onClose={handleCloseChat}
-        onMessageUpdate={handleNewMessage}
-        canvasId={canvasId}
-        canvasState={canvas}
-      />
+      {/* Sidebar Chat Panel */}
+      <div
+        className={`fixed top-0 right-0 h-full w-96 bg-white border-l shadow-2xl z-50 transition-transform duration-300 ease-in-out flex flex-col ${
+          isChatOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <CanvasChat
+          key={canvasId} // Stable key to preserve chat state updates
+          isOpen={isChatOpen}
+          onClose={handleCloseChat}
+          onMessageUpdate={handleNewMessage}
+          canvasId={canvasId}
+          canvasState={canvas}
+        />
+      </div>
     </div>
   );
 };
