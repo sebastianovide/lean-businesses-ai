@@ -61,6 +61,15 @@ interface DataNetworkPart {
   };
 }
 
+const TOOL_NAME_MAP: Record<string, string> = {
+  canvasUpdateItemTool: "Updating item",
+  canvasAddItemTool: "Adding item",
+  canvasRemoveItemTool: "Removing item",
+  canvasReplaceStateTool: "Rebuilding canvas",
+  canvasAnalyzeTool: "Analyzing",
+  canvasBatchUpdateTool: "Updating canvas",
+};
+
 export default function CanvasChat({
   isOpen,
   onClose,
@@ -172,58 +181,40 @@ export default function CanvasChat({
 
               return (
                 <div key={message.id} className="space-y-4">
-                  {message.parts?.map((part, partIdx) => {
-                    const partKey = `${message.id}-${partIdx}`;
-
-                    if (part.type === "text") {
-                      return (
-                        <Message key={partKey} from={message.role}>
-                          <MessageContent>
-                            <AssistantMessageResponse>
-                              {part.text}
-                            </AssistantMessageResponse>
-                          </MessageContent>
-                          {message.role === "assistant" && (
-                            <MessageActions>
-                              <MessageAction
-                                onClick={() =>
-                                  navigator.clipboard.writeText(part.text)
-                                }
-                                label="Copy"
-                              >
-                                <CopyIcon size={12} />
-                              </MessageAction>
-                            </MessageActions>
-                          )}
-                        </Message>
-                      );
-                    }
-
-                    if (part.type === "data-network") {
+                  {/* 1. Reasoning/Tool Steps first */}
+                  {message.parts
+                    ?.filter((p) => p.type === "data-network")
+                    .map((part, pIdx) => {
                       const dataNetwork = part as DataNetworkPart;
                       return (
-                        <div key={partKey} className="space-y-4">
-                          <Reasoning
-                            isStreaming={
-                              status === "streaming" && isLastMessage
-                            }
-                            defaultOpen={msgIdx === messages.length - 1}
-                            className="w-full"
+                        <Reasoning
+                          key={`${message.id}-reasoning-${pIdx}`}
+                          isStreaming={status === "streaming" && isLastMessage}
+                          defaultOpen={msgIdx === messages.length - 1}
+                          className="w-full"
+                        >
+                          <ReasoningTrigger />
+                          <CollapsibleContent
+                            className={cn(
+                              "mt-4 text-sm",
+                              "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in"
+                            )}
                           >
-                            <ReasoningTrigger />
-                            {/* Using CollapsibleContent directly instead of ReasoningContent 
-                                because ReasoningContent only accepts a string (markdown) 
-                                but we need to render tool steps as JSX. */}
-                            <CollapsibleContent
-                              className={cn(
-                                "mt-4 text-sm",
-                                "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in"
-                              )}
-                            >
-                              {dataNetwork.data.steps &&
-                              dataNetwork.data.steps.length > 0 ? (
-                                <div className="space-y-3">
-                                  {dataNetwork.data.steps.map((step, sIdx) => {
+                            {dataNetwork.data.steps &&
+                            dataNetwork.data.steps.length > 0 ? (
+                              <div className="space-y-3">
+                                {dataNetwork.data.steps
+                                  .filter((step, index, self) => {
+                                    const nextStep = self[index + 1];
+                                    if (
+                                      nextStep &&
+                                      nextStep.name === step.name
+                                    ) {
+                                      return false;
+                                    }
+                                    return true;
+                                  })
+                                  .map((step, sIdx) => {
                                     let outputMsg = "";
                                     if (step.output) {
                                       try {
@@ -239,15 +230,22 @@ export default function CanvasChat({
                                       } catch (e) {}
                                     }
 
+                                    const toolLabel =
+                                      TOOL_NAME_MAP[step.name] || step.name;
+
+                                    const isRedundantWithFinal =
+                                      dataNetwork.data.status === "finished" &&
+                                      outputMsg === dataNetwork.data.output;
+
                                     return (
                                       <div
                                         key={sIdx}
                                         className="text-xs border-l-2 border-primary/20 pl-2 py-1"
                                       >
                                         <div className="font-semibold text-primary/80">
-                                          {step.name}
+                                          {toolLabel}
                                         </div>
-                                        {outputMsg && (
+                                        {outputMsg && !isRedundantWithFinal && (
                                           <div className="mt-1 opacity-80">
                                             {outputMsg}
                                           </div>
@@ -255,41 +253,44 @@ export default function CanvasChat({
                                       </div>
                                     );
                                   })}
-                                </div>
-                              ) : (
-                                "Analyzing canvas context..."
-                              )}
-                            </CollapsibleContent>
-                          </Reasoning>
-
-                          {dataNetwork.data.status === "finished" &&
-                            dataNetwork.data.output && (
-                              <Message from="assistant">
-                                <MessageContent>
-                                  <AssistantMessageResponse>
-                                    {dataNetwork.data.output}
-                                  </AssistantMessageResponse>
-                                </MessageContent>
-                                <MessageActions>
-                                  <MessageAction
-                                    onClick={() =>
-                                      navigator.clipboard.writeText(
-                                        dataNetwork.data.output || ""
-                                      )
-                                    }
-                                    label="Copy"
-                                  >
-                                    <CopyIcon size={12} />
-                                  </MessageAction>
-                                </MessageActions>
-                              </Message>
+                              </div>
+                            ) : (
+                              "Analyzing canvas context..."
                             )}
-                        </div>
+                          </CollapsibleContent>
+                        </Reasoning>
                       );
-                    }
+                    })}
 
-                    return null;
-                  })}
+                  {/* 2. Text Content last, consolidated into one Message component */}
+                  {message.parts?.some((p) => p.type === "text") && (
+                    <Message key={`${message.id}-content`} from={message.role}>
+                      <MessageContent>
+                        <AssistantMessageResponse>
+                          {message.parts
+                            .filter((p) => p.type === "text")
+                            .map((p) => (p as any).text)
+                            .join("\n\n")}
+                        </AssistantMessageResponse>
+                      </MessageContent>
+                      {message.role === "assistant" && (
+                        <MessageActions>
+                          <MessageAction
+                            onClick={() => {
+                              const allText = message.parts
+                                ?.filter((p) => p.type === "text")
+                                .map((p) => (p as any).text)
+                                .join("\n\n");
+                              navigator.clipboard.writeText(allText || "");
+                            }}
+                            label="Copy"
+                          >
+                            <CopyIcon size={12} />
+                          </MessageAction>
+                        </MessageActions>
+                      )}
+                    </Message>
+                  )}
                 </div>
               );
             })}

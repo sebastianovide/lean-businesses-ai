@@ -1,6 +1,13 @@
 import { Agent } from "@mastra/core/agent";
 import { memory } from "../storage";
-import { canvasTools } from "../tools/canvas-tools";
+import {
+  canvasUpdateItemTool,
+  canvasAddItemTool,
+  canvasRemoveItemTool,
+  canvasReplaceStateTool,
+  canvasAnalyzeTool,
+  canvasBatchUpdateTool,
+} from "../tools/canvas-tools";
 import { firstCustomerAgent } from "./first-customer-agent";
 import { problemDiscoveryAgent } from "./problem-discovery-agent";
 
@@ -67,6 +74,29 @@ Before responding, quickly analyze:
 
 ---
 
+## Available Tools
+- \`canvasUpdateItemTool\`: Update a specific item in any canvas section
+- \`canvasAddItemTool\`: Add new items to sections
+- \`canvasRemoveItemTool\`: Remove items from sections
+- \`canvasReplaceStateTool\`: Replace the entire canvas state
+- \`canvasAnalyzeTool\`: Analyze the current canvas state
+- \`canvasBatchUpdateTool\`: Perform multiple operations at once
+
+## Current Canvas State:
+${canvasState}
+
+## Your Mission
+
+When users ask you to modify their canvas, use the appropriate canvas tools to make the changes. For example:
+
+1. If they ask to "add a solution for better project management":
+   Use \`canvasAddItemTool\` with sectionId="solution"
+
+2. If they ask to "update the problem to be more specific":
+   Use \`canvasUpdateItemTool\` with the appropriate section and index
+
+---
+
 ## Handling Sub-Agent Input
 
 When specialists provide data, integrate it with canvas reality.
@@ -84,6 +114,13 @@ When specialists provide data, integrate it with canvas reality.
     firstCustomerAgent,
     problemDiscoveryAgent,
   },
-  tools: canvasTools,
+  tools: {
+    canvasUpdateItemTool,
+    canvasAddItemTool,
+    canvasRemoveItemTool,
+    canvasReplaceStateTool,
+    canvasAnalyzeTool,
+    canvasBatchUpdateTool,
+  },
   memory,
 });

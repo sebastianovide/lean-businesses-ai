@@ -4,7 +4,6 @@ import { storage } from "./storage";
 import { leanCanvasOrchestratorAgent } from "./agents/lean-canvas-orchestrator-agent";
 import { firstCustomerAgent } from "./agents/first-customer-agent";
 import { problemDiscoveryAgent } from "./agents/problem-discovery-agent";
-import { canvasDemoAgent } from "./agents/canvas-demo-agent";
 
 const mastraInstance = new Mastra({
   workflows: {},
@@ -12,7 +11,6 @@ const mastraInstance = new Mastra({
     leanCanvasOrchestratorAgent,
     firstCustomerAgent,
     problemDiscoveryAgent,
-    canvasDemoAgent,
   },
   storage,
   logger: new PinoLogger({

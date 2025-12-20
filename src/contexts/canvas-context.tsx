@@ -167,6 +167,44 @@ export const CanvasProvider = ({
     return null;
   };
 
+  // Internal helper to resolve section and subsection
+  const resolveSection = useCallback(
+    (sectionId: string, subsectionTitle?: string) => {
+      // 1. Try top-level sectionId
+      if (canvas[sectionId]) {
+        return {
+          resolvedSectionId: sectionId,
+          resolvedSubsectionTitle: subsectionTitle,
+        };
+      }
+
+      // 2. Search for section title or subsection ID/title
+      for (const [sId, section] of Object.entries(canvas)) {
+        if (section.title.toLowerCase() === sectionId.toLowerCase()) {
+          return {
+            resolvedSectionId: sId,
+            resolvedSubsectionTitle: subsectionTitle,
+          };
+        }
+        if (section.subsections) {
+          const subKey = findSubsectionKey(section.subsections, sectionId);
+          if (subKey) {
+            return {
+              resolvedSectionId: sId,
+              resolvedSubsectionTitle: subKey,
+            };
+          }
+        }
+      }
+
+      return {
+        resolvedSectionId: sectionId,
+        resolvedSubsectionTitle: subsectionTitle,
+      };
+    },
+    [canvas]
+  );
+
   const updateItem = useCallback(
     (
       sectionId: string,
@@ -174,15 +212,19 @@ export const CanvasProvider = ({
       value: string,
       subsectionTitle?: string
     ) => {
+      const { resolvedSectionId, resolvedSubsectionTitle } = resolveSection(
+        sectionId,
+        subsectionTitle
+      );
+
       setCanvas((prev) => {
-        const section = prev[sectionId];
+        const section = prev[resolvedSectionId];
         if (!section) return prev;
 
         // Determine effective subsection title
-        // If provided, use it. If not provided but subsections exist, try matching sectionId.
-        let effectiveSubsectionTitle = subsectionTitle;
+        let effectiveSubsectionTitle = resolvedSubsectionTitle;
         if (!effectiveSubsectionTitle && section.subsections) {
-          effectiveSubsectionTitle = sectionId;
+          effectiveSubsectionTitle = resolvedSectionId;
         }
 
         if (effectiveSubsectionTitle && section.subsections) {
@@ -196,7 +238,7 @@ export const CanvasProvider = ({
             if (subsection && subsection.items) {
               const newItems = [...subsection.items];
               if (index >= newItems.length) {
-                newItems[index] = value; // Auto-expand/add
+                newItems[index] = value;
               } else {
                 newItems[index] = value;
               }
@@ -209,7 +251,7 @@ export const CanvasProvider = ({
           }
           return {
             ...prev,
-            [sectionId]: {
+            [resolvedSectionId]: {
               ...section,
               subsections: updatedSubsections,
             },
@@ -224,7 +266,7 @@ export const CanvasProvider = ({
 
           return {
             ...prev,
-            [sectionId]: {
+            [resolvedSectionId]: {
               ...section,
               items: newItems,
             },
@@ -233,19 +275,24 @@ export const CanvasProvider = ({
         return prev;
       });
     },
-    []
+    [resolveSection]
   );
 
   const addItem = useCallback(
     (sectionId: string, subsectionTitle?: string, value: string = "") => {
+      const { resolvedSectionId, resolvedSubsectionTitle } = resolveSection(
+        sectionId,
+        subsectionTitle
+      );
+
       setCanvas((prev) => {
-        const section = prev[sectionId];
+        const section = prev[resolvedSectionId];
         if (!section) return prev;
 
         // Determine effective subsection title
-        let effectiveSubsectionTitle = subsectionTitle;
+        let effectiveSubsectionTitle = resolvedSubsectionTitle;
         if (!effectiveSubsectionTitle && section.subsections) {
-          effectiveSubsectionTitle = sectionId;
+          effectiveSubsectionTitle = resolvedSectionId;
         }
 
         if (effectiveSubsectionTitle && section.subsections) {
@@ -266,7 +313,7 @@ export const CanvasProvider = ({
           }
           return {
             ...prev,
-            [sectionId]: {
+            [resolvedSectionId]: {
               ...section,
               subsections: updatedSubsections,
             },
@@ -278,7 +325,7 @@ export const CanvasProvider = ({
         ) {
           return {
             ...prev,
-            [sectionId]: {
+            [resolvedSectionId]: {
               ...section,
               items: [...section.items, value],
             },
@@ -287,19 +334,24 @@ export const CanvasProvider = ({
         return prev;
       });
     },
-    []
+    [resolveSection]
   );
 
   const removeItem = useCallback(
     (sectionId: string, index: number, subsectionTitle?: string) => {
+      const { resolvedSectionId, resolvedSubsectionTitle } = resolveSection(
+        sectionId,
+        subsectionTitle
+      );
+
       setCanvas((prev) => {
-        const section = prev[sectionId];
+        const section = prev[resolvedSectionId];
         if (!section) return prev;
 
         // Determine effective subsection title
-        let effectiveSubsectionTitle = subsectionTitle;
+        let effectiveSubsectionTitle = resolvedSubsectionTitle;
         if (!effectiveSubsectionTitle && section.subsections) {
-          effectiveSubsectionTitle = sectionId;
+          effectiveSubsectionTitle = resolvedSectionId;
         }
 
         if (effectiveSubsectionTitle && section.subsections) {
@@ -320,7 +372,7 @@ export const CanvasProvider = ({
           }
           return {
             ...prev,
-            [sectionId]: {
+            [resolvedSectionId]: {
               ...section,
               subsections: updatedSubsections,
             },
@@ -328,7 +380,7 @@ export const CanvasProvider = ({
         } else if (!effectiveSubsectionTitle) {
           return {
             ...prev,
-            [sectionId]: {
+            [resolvedSectionId]: {
               ...section,
               items: section.items?.filter((_, i) => i !== index),
             },
@@ -337,7 +389,7 @@ export const CanvasProvider = ({
         return prev;
       });
     },
-    []
+    [resolveSection]
   );
 
   const clearCanvas = useCallback(() => {

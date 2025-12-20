@@ -4,7 +4,7 @@ import { CanvasStateChange } from "@/contexts/canvas-context";
 
 // Canvas Management Tools
 export const canvasUpdateItemTool = createTool({
-  id: "canvas_update_item",
+  id: "canvas-update-item",
   description: "Update a specific item in a canvas section or subsection",
   inputSchema: z.object({
     sectionId: z
@@ -47,7 +47,7 @@ export const canvasUpdateItemTool = createTool({
 });
 
 export const canvasAddItemTool = createTool({
-  id: "canvas_add_item",
+  id: "canvas-add-item",
   description: "Add a new item to a canvas section or subsection",
   inputSchema: z.object({
     sectionId: z
@@ -84,7 +84,7 @@ export const canvasAddItemTool = createTool({
 });
 
 export const canvasRemoveItemTool = createTool({
-  id: "canvas_remove_item",
+  id: "canvas-remove-item",
   description: "Remove an item from a canvas section or subsection",
   inputSchema: z.object({
     sectionId: z
@@ -125,7 +125,7 @@ export const canvasRemoveItemTool = createTool({
 });
 
 export const canvasReplaceStateTool = createTool({
-  id: "canvas_replace_state",
+  id: "canvas-replace-state",
   description: "Replace the entire canvas state with new content",
   inputSchema: z.object({
     newState: z
@@ -153,7 +153,7 @@ export const canvasReplaceStateTool = createTool({
 
 // Canvas Analysis Tool
 export const canvasAnalyzeTool = createTool({
-  id: "canvas_analyze",
+  id: "canvas-analyze",
   description: "Analyze the current canvas state and provide insights",
   inputSchema: z.object({
     analysisType: z
@@ -176,7 +176,7 @@ export const canvasAnalyzeTool = createTool({
 
 // Batch operations
 export const canvasBatchUpdateTool = createTool({
-  id: "canvas_batch_update",
+  id: "canvas-batch-update",
   description: "Perform multiple canvas operations in a single call",
   inputSchema: z.object({
     operations: z
@@ -247,13 +247,3 @@ export const canvasBatchUpdateTool = createTool({
     };
   },
 });
-
-// Export all tools
-export const canvasTools = {
-  canvasUpdateItemTool,
-  canvasAddItemTool,
-  canvasRemoveItemTool,
-  canvasReplaceStateTool,
-  canvasAnalyzeTool,
-  canvasBatchUpdateTool,
-};
